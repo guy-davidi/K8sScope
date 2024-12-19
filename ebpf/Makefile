@@ -18,8 +18,9 @@ $(OUT_DIR):
 $(OUT_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# For eBPF, $(OBJ_FILES) are already the final objects, no linking needed.
 $(OUTPUT): $(OBJ_FILES)
-	$(CC) $(CFLAGS) -o $@ $^
+	cp $(OBJ_FILES) $(OUTPUT)
 
 clean:
 	rm -rf $(OUT_DIR) $(OUTPUT)
