@@ -1,26 +1,29 @@
-SRC_DIR = src
-INC_DIR = h
-OUT_DIR = build
+# Makefile to compile XDP eBPF program
 
-SRC_FILES = $(wildcard $(SRC_DIR)/*.c)
-OBJ_FILES = $(SRC_FILES:$(SRC_DIR)/%.c=$(OUT_DIR)/%.o)
+# Define the BPF target
+CLANG = clang
+BPF_FLAGS = -O2 -target bpf
+OBJ_FILE = xdp_drop.o
+SRC_FILE = xdp_drop.c
 
-CC = clang
-CFLAGS = -O2 -target bpf -I$(INC_DIR)
+# Additional include paths
+INCLUDE_PATH = /usr/lib/linux/uapi/x86
+KERNEL_HEADERS = /usr/src/linux-headers-$(shell uname -r)/include
+SYSTEM_HEADERS = /usr/include/x86_64-linux-gnu
 
-OUTPUT = xdp_monitor.o
+# Compiler options
+CFLAGS = -Wall -g -I$(INCLUDE_PATH) -I$(KERNEL_HEADERS) -I$(SYSTEM_HEADERS) -m64
 
-all: $(OUT_DIR) $(OUTPUT)
+# Default target
+all: $(OBJ_FILE)
 
-$(OUT_DIR):
-	mkdir -p $@
+# Rule to compile the source file into the object file
+$(OBJ_FILE): $(SRC_FILE)
+	$(CLANG) $(BPF_FLAGS) $(CFLAGS) -c $(SRC_FILE) -o $(OBJ_FILE)
 
-$(OUT_DIR)/%.o: $(SRC_DIR)/%.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-# For eBPF, $(OBJ_FILES) are already the final objects, no linking needed.
-$(OUTPUT): $(OBJ_FILES)
-	cp $(OBJ_FILES) $(OUTPUT)
-
+# Rule to clean up object files
 clean:
-	rm -rf $(OUT_DIR) $(OUTPUT)
+	rm -f $(OBJ_FILE)
+
+# Phony targets
+.PHONY: all clean

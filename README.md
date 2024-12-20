@@ -14,3 +14,17 @@ This minimal project creates a local Kubernetes cluster with KinD, compiles a si
    ```bash
    cd kind-cluster
    ./create-cluster.sh
+
+
+List the XDP program attached to an interface:
+ip link show dev eth0
+
+Remove the XDP program from the interface:
+sudo ip link set dev eth0 xdp off
+
+Verify removal:
+ip link show dev eth0
+
+show all ebpf prgrams using:
+sudo bpftool prog show
+
