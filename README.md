@@ -16,15 +16,40 @@ This minimal project creates a local Kubernetes cluster with KinD, compiles a si
    ./create-cluster.sh
 
 
-List the XDP program attached to an interface:
-ip link show dev eth0
 
-Remove the XDP program from the interface:
+## Remove the XDP program from the interface:
+```
 sudo ip link set dev eth0 xdp off
+```
 
-Verify removal:
+## Verify removal:
+```
 ip link show dev eth0
+```
 
-show all ebpf prgrams using:
+## show all ebpf prgrams using:
+```
 sudo bpftool prog show
+```
 
+## Load the program into the kernel:
+```
+sudo bpftool prog load xdp_prog.o /sys/fs/bpf/xdp_prog
+```
+
+## Attach the program to the desired interface:
+```
+sudo bpftool net attach xdp pinned /sys/fs/bpf/xdp_prog dev eth0
+
+```
+
+## List the XDP program attached to an interface:
+```
+ip link show dev eth0
+```
+
+## Verify the Program is Attached
+```
+sudo bpftool net show
+
+```

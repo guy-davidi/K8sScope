@@ -3,8 +3,8 @@
 # Define the BPF target
 CLANG = clang
 BPF_FLAGS = -O2 -target bpf
-OBJ_FILE = xdp_drop.o
-SRC_FILE = xdp_drop.c
+OBJ_FILE = xdp_prog.o
+SRC_FILE = xdp_prog.c
 
 # Additional include paths
 INCLUDE_PATH = /usr/lib/linux/uapi/x86
