@@ -1,7 +1,11 @@
 # eBPF && KinD Kubernetes Monitoring Example
 
 ## Overview
-This minimal project creates a local Kubernetes cluster with KinD, compiles a simple eBPF program, and demonstrates how to manually load the eBPF program to monitor traffic. A BusyBox pod is deployed to generate some network traffic. The eBPF program simply prints a message whenever it sees a packet.
+This project creates:
+- local Kubernetes cluster with KinD
+- compiles a simple eBPF program
+- demonstrates how to manually load the eBPF program to monitor traffic.
+
 
 ## Prerequisites
 - [KinD](https://kind.sigs.k8s.io/)
@@ -16,50 +20,50 @@ This minimal project creates a local Kubernetes cluster with KinD, compiles a si
    ./create-cluster.sh
 
 
-
-## Remove the XDP program from the interface:
+## Commands
+1. **Remove the XDP program from the interface:**
 ```
-sudo ip link set dev eth0 xdp off
-```
-
-## Verify removal:
-```
-ip link show dev eth0
+	sudo ip link set dev eth0 xdp off
 ```
 
-## show all ebpf prgrams using:
+2. **Verify removal:**
 ```
-sudo bpftool prog show
-```
-
-## Load the program into the kernel:
-```
-sudo bpftool prog load xdp_prog.o /sys/fs/bpf/guy_xdp_prog
+	ip link show dev eth0
 ```
 
-## Attach the program to the desired interface:
+3. **show all ebpf prgrams using:**
 ```
-sudo bpftool net attach xdp pinned /sys/fs/bpf/guy_xdp_prog dev eth0
-
-```
-
-## List the XDP program attached to an interface:
-```
-ip link show dev eth0
+	sudo bpftool prog show
 ```
 
-## Verify the Program is Attached
+4. **Load the program into the kernel:**
 ```
-sudo bpftool net show
+	sudo bpftool prog load xdp_prog.o /sys/fs/bpf/guy_xdp_prog
+```
+
+5. **Attach the program to the desired interface:**
+```
+	sudo bpftool net attach xdp pinned /sys/fs/bpf/guy_xdp_prog dev eth0
 
 ```
 
-## To trace our ebpf program
+6. **List the XDP program attached to an interface:**
 ```
-cat /sys/kernel/tracing/trace_pipe 
+	ip link show dev eth0
 ```
 
-## Documentation to get system call forma
+7. **Verify the Program is Attached**
+```
+	sudo bpftool net show
+
+```
+
+8. **To trace our ebpf program**
+```
+	cat /sys/kernel/tracing/trace_pipe 
+```
+
+9. **Documentation to get system call forma**
 here we can see the file name in offset 16 -> 16*8(bits)=128->2*64bits
 ```
 
