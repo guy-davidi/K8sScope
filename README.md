@@ -1,4 +1,4 @@
-# eBPF && KinD Kubernetes Monitoring Example
+# KinD Kubernetes Monitoring using eBPF
 
 ## Overview
 This project creates:
