@@ -34,12 +34,12 @@ sudo bpftool prog show
 
 ## Load the program into the kernel:
 ```
-sudo bpftool prog load xdp_prog.o /sys/fs/bpf/xdp_prog
+sudo bpftool prog load xdp_prog.o /sys/fs/bpf/guy_xdp_prog
 ```
 
 ## Attach the program to the desired interface:
 ```
-sudo bpftool net attach xdp pinned /sys/fs/bpf/xdp_prog dev eth0
+sudo bpftool net attach xdp pinned /sys/fs/bpf/guy_xdp_prog dev eth0
 
 ```
 
