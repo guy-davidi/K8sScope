@@ -53,3 +53,8 @@ ip link show dev eth0
 sudo bpftool net show
 
 ```
+
+## To trace our ebpf program
+```
+cat /sys/kernel/tracing/trace_pipe 
+```
