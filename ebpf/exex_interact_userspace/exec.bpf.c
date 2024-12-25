@@ -13,9 +13,15 @@ struct {
 // Struct definition for the parameters passed to the execve syscall tracepoint.
 // This is provided by the kernel tracepoint API.
 struct exec_params_t {
-    u64 __unused;       // Placeholder for unused fields
-    u32 __unused2;      // Placeholder for unused fields
-    char *file;         // Pointer to the filename being executed
+    unsigned short common_type;          // Common type (event type)
+    unsigned char common_flags;          // Common flags
+    unsigned char common_preempt_count;  // Preemption count
+    int common_pid;                      // Process ID
+
+    int __syscall_nr;                    // Syscall number
+    const char *file;                // Pointer to the file name
+    const char *const *argv;             // Pointer to argument vector
+    const char *const *envp;             // Pointer to environment vector
 };
 
 // Define the eBPF program to attach to the tracepoint `sys_enter_execve`.
