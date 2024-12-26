@@ -1,4 +1,9 @@
 APP=exec
+IMAGE=guydavidi/ebpf-exec
+
+.PHONY: all
+all: skel
+	clang exec.c -lbpf -lelf -o $(APP)
 
 .PHONY: $(APP)
 $(APP): skel
@@ -19,6 +24,14 @@ skel: bpf
 .PHONY: run
 run: $(APP)
 	sudo ./$(APP)
+
+# Build and push the Docker image
+.PHONY: docker
+docker: $(APP)
+	@echo "Building Docker image..."
+	docker build -t $(IMAGE) .
+	@echo "Pushing Docker image to Docker Hub..."
+	docker push $(IMAGE)
 
 .PHONY: clean
 clean:
