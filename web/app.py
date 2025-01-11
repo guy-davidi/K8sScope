@@ -1,24 +1,25 @@
 #!/usr/bin/env python3
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 import os
 import subprocess
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates')
 EBPF_DIR = os.path.abspath("../ebpf")
 
 @app.route('/')
 def home():
-    return "eBPF Program Manager Running!"
+    return render_template("index.html")
 
-@app.route('/programs', methods=['GET'])
+@app.route('/api/programs', methods=['GET'])
 def list_programs():
     try:
         programs = [f for f in os.listdir(EBPF_DIR) if f.endswith('.o')]
-        return jsonify(programs)
+        loaded_programs = get_loaded_programs()
+        return jsonify({"programs": programs, "loaded": loaded_programs})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"programs": [], "loaded": [], "error": str(e)}), 500
 
-@app.route('/programs/load', methods=['POST'])
+@app.route('/api/programs/load', methods=['POST'])
 def load_program():
     program = request.json.get('program')
     program_path = os.path.join(EBPF_DIR, program)
@@ -32,7 +33,7 @@ def load_program():
     except subprocess.CalledProcessError as e:
         return jsonify({"error": f"Failed to load program {program}: {str(e)}"}), 500
 
-@app.route('/programs/unload', methods=['POST'])
+@app.route('/api/programs/unload', methods=['POST'])
 def unload_program():
     program = request.json.get('program')
     try:
@@ -40,6 +41,14 @@ def unload_program():
         return jsonify({"message": f"Program {program} unloaded successfully"})
     except subprocess.CalledProcessError as e:
         return jsonify({"error": f"Failed to unload program {program}: {str(e)}"}), 500
+
+def get_loaded_programs():
+    """Get a list of loaded eBPF programs using bpftool."""
+    try:
+        result = subprocess.run(["bpftool", "prog", "show"], capture_output=True, text=True, check=True)
+        return result.stdout.splitlines() if result.stdout else []
+    except subprocess.CalledProcessError:
+        return []
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000)
