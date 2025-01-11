@@ -1,1 +1,0 @@
-PROGRAMS_DIR = "../ebpf/exex_interact_userspace"
