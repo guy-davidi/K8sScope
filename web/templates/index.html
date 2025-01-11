@@ -2,12 +2,17 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>eBPF Program Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>eBPF Program Manager - Advanced UI</title>
+
+  <!-- Bootstrap 5 -->
   <link
     rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
   />
+  <!-- Optional custom CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
   <style>
     .loading {
       display: none;
@@ -15,56 +20,138 @@
   </style>
 </head>
 <body class="bg-light">
-  <div class="container mt-5">
+  <div class="container my-5">
     <h1 class="text-center mb-4">eBPF Program Manager</h1>
 
+    <!-- Toast container (for success/error messages) -->
+    <div class="position-fixed top-0 end-0 p-3" style="z-index: 2000">
+      <div id="toastContainer" class="toast-container"></div>
+    </div>
+
     <!-- Loading Spinner -->
-    <div class="loading text-center mb-3">
+    <div class="loading text-center">
       <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">Loading...</span>
       </div>
     </div>
 
-    <!-- Available Programs Section -->
-    <div class="card mb-4">
-      <div class="card-header">
-        <h5>Available eBPF Programs</h5>
-      </div>
-      <div class="card-body">
-        <ul id="program-list" class="list-group"></ul>
-      </div>
-    </div>
+    <!-- Content Row -->
+    <div class="row">
+      <!-- Left side: .o files & loaded programs -->
+      <div class="col-md-4">
+        <!-- .o files card -->
+        <div class="card mb-4">
+          <div class="card-header bg-info text-white">
+            <h5 class="mb-0">Available .o Files (ebpf/src)</h5>
+          </div>
+          <div class="card-body p-2" style="max-height: 300px; overflow:auto;">
+            <ul id="o-file-list" class="list-group list-group-flush"></ul>
+          </div>
+        </div>
 
-    <!-- Loaded Programs Section -->
-    <div class="card">
-      <div class="card-header">
-        <h5>Loaded eBPF Programs</h5>
+        <!-- Loaded programs card -->
+        <div class="card">
+          <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0">Loaded eBPF Programs</h5>
+          </div>
+          <div class="card-body p-0">
+            <table class="table table-sm table-bordered mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Pinned</th>
+                </tr>
+              </thead>
+              <tbody id="loaded-table-body"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
-      <div class="card-body">
-        <table class="table table-bordered" id="loaded-programs">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Program Name</th>
-              <th>Type</th>
-              <th>Pinned Path</th>
-              <th>Run Count</th>
-              <th>Run Time (ns)</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+
+      <!-- Right side: Single form with "wizard" style -->
+      <div class="col-md-8">
+        <div class="card">
+          <div class="card-header bg-dark text-white">
+            <h5 class="mb-0">Manage eBPF</h5>
+          </div>
+          <div class="card-body">
+            <form id="ebpf-form">
+              <!-- Step 1: Action -->
+              <div class="mb-3">
+                <label for="action" class="form-label fw-bold">Action</label>
+                <select id="action" class="form-select">
+                  <option value="load">Load</option>
+                  <option value="attach">Attach</option>
+                  <option value="detach">Detach</option>
+                  <option value="unload">Unload</option>
+                </select>
+              </div>
+
+              <!-- Step 2: Choose .o file (for load) -->
+              <div class="mb-3">
+                <label class="form-label fw-bold" for="programInput">.o File Name</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="programInput"
+                  placeholder="myprog.o"
+                />
+                <small class="text-muted">Pick from the left .o list or type your own name from ebpf/src</small>
+              </div>
+
+              <!-- Step 3: Pin Path -->
+              <div class="mb-3">
+                <label class="form-label fw-bold" for="pinPath">Pin Path</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="pinPath"
+                  placeholder="/sys/fs/bpf/myprog"
+                />
+                <small class="text-muted">Optional if loading/unloading: defaults to /sys/fs/bpf/&lt;program&gt;</small>
+              </div>
+
+              <!-- Step 4: Program Type / Attach Type -->
+              <div class="mb-3">
+                <label class="form-label fw-bold" for="typeInput">Type (tracepoint, xdp, etc.)</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="typeInput"
+                  placeholder="tracepoint"
+                />
+                <small class="text-muted">For load: "type tracepoint" or "type xdp". For attach: "attach_type"</small>
+              </div>
+
+              <!-- Step 5: Target (for attach/detach) -->
+              <div class="mb-3">
+                <label class="form-label fw-bold" for="targetInput">Target (tracepoint path or interface)</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="targetInput"
+                  placeholder="/sys/kernel/debug/tracing/events/syscalls/sys_enter_execve or eth0"
+                />
+                <small class="text-muted">Leave empty to default to "sys_enter_execve" if tracepoint, or "eth0" if XDP</small>
+              </div>
+
+              <button type="submit" class="btn btn-success w-100">
+                <strong>Execute</strong>
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Bootstrap JS (optional) -->
+  <!-- Bootstrap & Bundle -->
   <script
-    src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
   ></script>
-
-  <!-- Link to your external JavaScript file in the 'static' folder -->
+  <!-- Our script -->
   <script src="{{ url_for('static', filename='main.js') }}"></script>
 </body>
 </html>
