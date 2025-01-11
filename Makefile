@@ -35,6 +35,12 @@ docker: $(APP)
 	@echo "Pushing Docker image to Docker Hub..."
 	docker push $(IMAGE)
 
+# New target to run your Python web application
+.PHONY: web
+web:
+	@echo "Starting the web application..."
+	python3 web/app.py
+
 .PHONY: clean
 clean:
 	-rm -rf $(EBPF_DIR)/*.o $(EBPF_DIR)/*.skel.h $(EBPF_DIR)/vmlinux.h $(APP)
