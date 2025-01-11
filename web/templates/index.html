@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eBPF Program Manager</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <style>
+        .loading {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">eBPF Program Manager</h1>
+
+        <!-- Loading Spinner -->
+        <div class="loading text-center mb-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+
+        <!-- Available Programs Section -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Available eBPF Programs</h5>
+            </div>
+            <div class="card-body">
+                <ul id="program-list" class="list-group"></ul>
+            </div>
+        </div>
+
+        <!-- Loaded Programs Section -->
+        <div class="card">
+            <div class="card-header">
+                <h5>Loaded eBPF Programs</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-bordered" id="loaded-programs">
+                    <thead>
+                        <tr>
+                            <th>Program</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        async function fetchPrograms() {
+            showLoading(true);
+            try {
+                const response = await fetch('/api/programs');
+                const data = await response.json();
+
+                // Handle cases where programs or loaded are undefined
+                const programs = data.programs || [];
+                const loaded = data.loaded || [];
+
+                updateProgramList(programs);
+                updateLoadedPrograms(loaded);
+            } catch (error) {
+                alert('Error fetching programs: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function updateProgramList(programs) {
+            const programList = document.getElementById('program-list');
+            programList.innerHTML = '';
+            if (programs.length === 0) {
+                programList.innerHTML = '<li class="list-group-item">No available programs found.</li>';
+                return;
+            }
+            programs.forEach(program => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                li.textContent = program;
+                const button = document.createElement('button');
+                button.className = 'btn btn-primary btn-sm';
+                button.textContent = 'Load';
+                button.onclick = () => loadProgram(program);
+                li.appendChild(button);
+                programList.appendChild(li);
+            });
+        }
+
+        function updateLoadedPrograms(loaded) {
+            const tableBody = document.querySelector('#loaded-programs tbody');
+            tableBody.innerHTML = '';
+            if (loaded.length === 0) {
+                const emptyRow = document.createElement('tr');
+                const emptyCell = document.createElement('td');
+                emptyCell.colSpan = 2;
+                emptyCell.textContent = 'No loaded programs found.';
+                emptyRow.appendChild(emptyCell);
+                tableBody.appendChild(emptyRow);
+                return;
+            }
+            loaded.forEach(line => {
+                const tr = document.createElement('tr');
+                const tdProgram = document.createElement('td');
+                tdProgram.textContent = line;
+                const tdAction = document.createElement('td');
+                const button = document.createElement('button');
+                button.className = 'btn btn-danger btn-sm';
+                button.textContent = 'Unload';
+                button.onclick = () => unloadProgram(line);
+                tdAction.appendChild(button);
+                tr.appendChild(tdProgram);
+                tr.appendChild(tdAction);
+                tableBody.appendChild(tr);
+            });
+        }
+
+        async function loadProgram(program) {
+            showLoading(true);
+            try {
+                const response = await fetch('/api/programs/load', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ program })
+                });
+                const data = await response.json();
+                alert(data.message || data.error);
+                fetchPrograms();
+            } catch (error) {
+                alert('Error loading program: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function unloadProgram(program) {
+            showLoading(true);
+            try {
+                const response = await fetch('/api/programs/unload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ program })
+                });
+                const data = await response.json();
+                alert(data.message || data.error);
+                fetchPrograms();
+            } catch (error) {
+                alert('Error unloading program: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function showLoading(show) {
+            const loading = document.querySelector('.loading');
+            loading.style.display = show ? 'block' : 'none';
+        }
+
+        // Initial fetch of programs
+        fetchPrograms();
+    </script>
+</body>
+</html>
