@@ -35,7 +35,7 @@ This project provides an intuitive and feature-rich web-based UI to manage eBPF 
 
 1. Clone the repository:
    ```bash
-   git clone <repository_url>
+   git clone git@github.com:guy-davidi/K8sScope.git
    cd eBPF-Program-Manager
    ```
 
