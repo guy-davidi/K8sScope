@@ -1,4 +1,4 @@
-# eBPF Program Manager - Advanced UI
+# eBPF Program Manager
 
 This project provides an intuitive and feature-rich web-based UI to manage eBPF programs. It allows users to load, unload, attach, and detach eBPF programs with ease, and displays detailed information about currently loaded eBPF programs.
 
