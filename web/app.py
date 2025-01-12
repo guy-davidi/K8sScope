@@ -216,7 +216,7 @@ def detach_program():
         return jsonify({"error": f"Detach failed: {e.stderr.strip()}"}), 500
 
 def get_loaded_programs():
-    """Return loaded eBPF programs from `sudo bpftool prog show --json`."""
+    """Return loaded eBPF programs with detailed information."""
     try:
         cmd = ["sudo", "bpftool", "prog", "show", "--json"]
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
@@ -227,17 +227,24 @@ def get_loaded_programs():
                 "id": prog.get("id"),
                 "name": prog.get("name"),
                 "type": prog.get("type"),
-                "pinned": prog.get("pinned"),
                 "tag": prog.get("tag"),
-                "run_time_ns": prog.get("run_time_ns"),
-                "run_cnt": prog.get("run_cnt")
+                "gpl_compatible": prog.get("gpl_compatible", False),
+                "loaded_at": prog.get("loaded_at"),
+                "uid": prog.get("uid"),
+                "orphaned": prog.get("orphaned", False),
+                "bytes_xlated": prog.get("bytes_xlated"),
+                "jited": prog.get("jited", False),
+                "bytes_jited": prog.get("bytes_jited"),
+                "bytes_memlock": prog.get("bytes_memlock"),
+                "map_ids": prog.get("map_ids", []),
+                "btf_id": prog.get("btf_id")
             })
         return loaded
     except subprocess.CalledProcessError as e:
-        print(f"[ERROR] {e.stderr.strip()}")
+        print(f"[ERROR] Command failed: {e.stderr.strip()}")
         return []
     except json.JSONDecodeError as e:
-        print(f"[ERROR] JSON decode error: {str(e)}")
+        print(f"[ERROR] Failed to parse JSON: {str(e)}")
         return []
 
 if __name__ == "__main__":
