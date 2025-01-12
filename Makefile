@@ -3,7 +3,7 @@ IMAGE=guydavidi/ebpf-exec
 EBPF_DIR=ebpf/src
 VENV=venv
 
-.PHONY: all clean run docker web venv
+.PHONY: all clean run docker web venv mount_debugfs
 
 # Create virtual environment and install Flask if not already set up
 $(VENV)/bin/activate:
@@ -31,8 +31,16 @@ bpf: vmlinux
 skel: bpf
 	bpftool gen skeleton $(EBPF_DIR)/exec.bpf.o name exec > $(EBPF_DIR)/exec.skel.h
 
+.PHONY: mount_debugfs
+mount_debugfs:
+	@echo "Checking if debugfs and tracefs are mounted..."
+	@if ! mountpoint -q /sys/kernel/debug; then \
+		echo "Mounting debugfs..."; \
+		sudo mount -t debugfs none /sys/kernel/debug; \
+	fi
+
 .PHONY: run
-run: $(APP)
+run: mount_debugfs $(APP)
 	sudo ./$(APP)
 
 # Build and push the Docker image
