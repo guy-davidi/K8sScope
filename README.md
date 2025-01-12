@@ -1,85 +1,141 @@
-# KinD Kubernetes Monitoring using eBPF
+# eBPF Program Manager - Advanced UI
 
-## Overview
-This project creates:
-- local Kubernetes cluster with KinD
-- compiles a simple eBPF program
-- demonstrates how to manually load the eBPF program to monitor traffic.
+This project provides an intuitive and feature-rich web-based UI to manage eBPF programs. It allows users to load, unload, attach, and detach eBPF programs with ease, and displays detailed information about currently loaded eBPF programs.
 
+## Features
 
-## Prerequisites
-- [KinD](https://kind.sigs.k8s.io/)
-- `clang`, `llvm`, `bpftool` installed
-- `kubectl` installed
+1. **Dynamic Listing of eBPF Programs**:
+   - Automatically lists available `.o` files from the `ebpf/src` directory.
+   - Shows currently loaded eBPF programs with detailed information.
 
-## Steps
+2. **Comprehensive Management**:
+   - Supports loading eBPF programs with optional pin paths and types.
+   - Enables attaching and detaching eBPF programs to/from tracepoints and XDP.
+   - Provides options to unload pinned eBPF programs.
 
-1. **Create the KinD Cluster:**
+3. **Expandable Program Details**:
+   - Displays key fields (ID, name, type, pinned status) in a table.
+   - Expands rows to show additional details, such as `bytes_xlated`, `map_ids`, and `btf_id`.
+
+4. **Interactive UI**:
+   - Bootstrap 5-based design for a responsive and modern look.
+   - Toast notifications for success and error messages.
+   - Loading spinner for better user experience.
+
+## Getting Started
+
+### Prerequisites
+
+- **Python 3.8+**
+- **Flask**
+- **bpftool** (must be installed and available in the system's PATH)
+- **eBPF Source Directory**: Ensure `.o` files are placed in the `ebpf/src` directory.
+
+### Installation
+
+1. Clone the repository:
    ```bash
-   cd kind-cluster
-   ./create-cluster.sh
+   git clone <repository_url>
+   cd eBPF-Program-Manager
+   ```
 
+2. Install the required Python packages:
+   ```bash
+   pip install Flask
+   ```
 
-## Commands
-1. **Remove the XDP program from the interface:**
-```
-	sudo ip link set dev eth0 xdp off
+3. Ensure `bpftool` is installed and accessible:
+   ```bash
+   sudo apt install bpftool
+   ```
+
+4. Create the `ebpf/src` directory and add your compiled eBPF `.o` files.
+
+### Running the Application
+
+1. Start the Flask server:
+   ```bash
+   python3 app.py
+   ```
+
+2. Open your browser and navigate to:
+   ```
+   http://127.0.0.1:5000
+   ```
+
+## Usage
+
+### Load an eBPF Program
+- Select or type the name of the `.o` file.
+- Specify an optional pin path.
+- Select the program type (e.g., `tracepoint`, `xdp`).
+- Click **Execute**.
+
+### Attach an eBPF Program
+- Provide the pin path of the loaded program.
+- Specify the attach type (`tracepoint`, `xdp`).
+- Specify the target (e.g., tracepoint path or network interface).
+- Click **Execute**.
+
+### Unload an eBPF Program
+- Provide the program name or pin path.
+- Click **Execute**.
+
+### Detach an eBPF Program
+- Provide the pin path and attach type.
+- Specify the target.
+- Click **Execute**.
+
+## File Structure
+
+```plaintext
+.
+├── app.py               # Main Flask application
+├── static
+│   ├── main.js          # JavaScript for UI interactivity
+│   └── style.css        # Custom styles (optional)
+├── templates
+│   └── index.html       # HTML template for the UI
+└── ebpf
+    └── src              # Directory for eBPF `.o` files
 ```
 
-2. **Verify removal:**
-```
-	ip link show dev eth0
-```
+## Screenshots
 
-3. **show all ebpf prgrams using:**
-```
-	sudo bpftool prog show
-```
+### Home Page
+![Home Page Screenshot](screenshots/home_page.png)
 
-4. **Load the program into the kernel:**
-```
-	sudo bpftool prog load xdp_prog.o /sys/fs/bpf/guy_xdp_prog
-```
+### Loaded Programs
+![Loaded Programs Screenshot](screenshots/loaded_programs.png)
 
-5. **Attach the program to the desired interface:**
-```
-	sudo bpftool net attach xdp pinned /sys/fs/bpf/guy_xdp_prog dev eth0
+## Contributing
 
-```
+Contributions are welcome! Please follow these steps:
 
-6. **List the XDP program attached to an interface:**
-```
-	ip link show dev eth0
-```
+1. Fork the repository.
+2. Create a new branch:
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+3. Commit your changes:
+   ```bash
+   git commit -m "Add your feature description"
+   ```
+4. Push the branch:
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+5. Open a pull request.
 
-7. **Verify the Program is Attached**
-```
-	sudo bpftool net show
+## License
 
-```
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-8. **To trace our ebpf program**
-```
-	cat /sys/kernel/tracing/trace_pipe 
-```
+## Acknowledgments
 
-9. **Documentation to get system call forma**
-here we can see the file name in offset 16 -> 16*8(bits)=128->2*64bits
-```
+- [Bootstrap](https://getbootstrap.com/) for the UI framework.
+- [Flask](https://flask.palletsprojects.com/) for the backend framework.
+- [bpftool](https://man7.org/linux/man-pages/man8/bpftool.8.html) for managing eBPF programs.
 
-└─# cat sys_enter_execve/format  
-name: sys_enter_execve
-ID: 810
-format:
-	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
-	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
-	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
-	field:int common_pid;	offset:4;	size:4;	signed:1;
-
-	field:int __syscall_nr;	offset:8;	size:4;	signed:1;
-	field:const char * filename;	offset:16;	size:8;	signed:0;
-	field:const char *const * argv;	offset:24;	size:8;	signed:0;
-	field:const char *const * envp;	offset:32;	size:8;	signed:0;
-
-print fmt: "filename: 0x%08lx, argv: 0x%08lx, envp: 0x%08lx", ((unsigned long)(REC->filename)), ((unsigned long)(REC->argv)), ((unsigned long)(REC->envp))
-```
+---
+Happy eBPFing!
