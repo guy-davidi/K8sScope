@@ -5,7 +5,7 @@ body {
   background-color: #f8f9fa;
 }
 
-/* Toast override: ensure our success and error toasts stand out nicely. */
+/* Toast override: ensure success/error toasts stand out. */
 .toast.text-bg-success .toast-body {
   background-color: #d4edda; /* Light green background */
   color: #155724;           /* Dark green text */
@@ -15,7 +15,7 @@ body {
   color: #721c24;            /* Dark red text */
 }
 
-/* Optionally, style the card headers with a custom gradient or color */
+/* Optional custom gradients for card headers */
 .card-header.bg-info {
   background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
 }
@@ -24,17 +24,6 @@ body {
 }
 .card-header.bg-dark {
   background: linear-gradient(135deg, #343a40 0%, #23272b 100%);
-}
-
-/* You could also customize the card body if desired */
-.card-body {
-  padding: 1rem 1.25rem;
-}
-
-/* Style the .o file list items on hover */
-#o-file-list li:hover {
-  background-color: #e2e6ea;
-  cursor: pointer;
 }
 
 /* Example “Execute” button styling to stand out */
@@ -48,4 +37,10 @@ body {
 .form-label.fw-bold {
   font-weight: 600 !important;
   margin-bottom: 0.3rem !important;
+}
+
+/* .o file list hover effect */
+#o-file-list li:hover {
+  background-color: #e2e6ea;
+  cursor: pointer;
 }
