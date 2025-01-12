@@ -1,8 +1,16 @@
 APP=exec
 IMAGE=guydavidi/ebpf-exec
 EBPF_DIR=ebpf/src
+VENV=venv
 
-.PHONY: all clean run docker
+.PHONY: all clean run docker web venv
+
+# Create virtual environment and install Flask if not already set up
+$(VENV)/bin/activate:
+	@echo "Setting up virtual environment..."
+	python3 -m venv $(VENV)
+	$(VENV)/bin/pip install --upgrade pip
+	$(VENV)/bin/pip install flask
 
 all: skel
 	clang $(EBPF_DIR)/exec.c -lbpf -lelf -o $(APP)
@@ -35,12 +43,12 @@ docker: $(APP)
 	@echo "Pushing Docker image to Docker Hub..."
 	docker push $(IMAGE)
 
-# New target to run your Python web application
+# Run the web application inside the virtual environment
 .PHONY: web
-web:
+web: $(VENV)/bin/activate
 	@echo "Starting the web application..."
-	python3 web/app.py
+	$(VENV)/bin/python3 web/app.py
 
 .PHONY: clean
 clean:
-	-rm -rf $(EBPF_DIR)/*.o $(EBPF_DIR)/*.skel.h $(EBPF_DIR)/vmlinux.h $(APP)
+	-rm -rf $(EBPF_DIR)/*.o $(EBPF_DIR)/*.skel.h $(EBPF_DIR)/vmlinux.h $(APP) $(VENV)

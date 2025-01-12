@@ -12,14 +12,12 @@ function showLoading(show) {
 
 // Show a Bootstrap 5 toast message
 function showToast(message, isError = false) {
-  // Create toast element
   const toastContainer = document.getElementById("toastContainer");
   const toastEl = document.createElement("div");
   toastEl.className = "toast align-items-center text-bg-" + (isError ? "danger" : "success");
   toastEl.role = "alert";
   toastEl.ariaLive = "assertive";
   toastEl.ariaAtomic = "true";
-
   toastEl.innerHTML = `
     <div class="d-flex">
       <div class="toast-body">
@@ -28,10 +26,7 @@ function showToast(message, isError = false) {
       <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
     </div>
   `;
-
   toastContainer.appendChild(toastEl);
-
-  // Initialize and show
   const bsToast = new bootstrap.Toast(toastEl, { delay: 4000 });
   bsToast.show();
   bsToast._element.addEventListener('hidden.bs.toast', () => {
@@ -73,8 +68,6 @@ function updateOFileList(programs) {
     const li = document.createElement("li");
     li.className = "list-group-item d-flex justify-content-between align-items-center";
     li.textContent = prog;
-
-    // Click to fill the form
     li.style.cursor = "pointer";
     li.addEventListener("click", () => {
       document.getElementById("programInput").value = prog;
@@ -83,28 +76,69 @@ function updateOFileList(programs) {
   });
 }
 
-// Populate loaded table
+// Populate loaded table with expandable details
 function updateLoadedTable(loaded) {
   const tbody = document.getElementById("loaded-table-body");
   tbody.innerHTML = "";
   if (loaded.length === 0) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
-    cell.colSpan = 4;
+    cell.colSpan = 5;
     cell.textContent = "No loaded programs found.";
     row.appendChild(cell);
     tbody.appendChild(row);
     return;
   }
-  loaded.forEach((prog) => {
+
+  loaded.forEach((prog, index) => {
     const row = document.createElement("tr");
     row.innerHTML = `
       <td>${prog.id}</td>
       <td>${prog.name}</td>
       <td>${prog.type}</td>
       <td>${prog.pinned || "Not pinned"}</td>
+      <td>
+        <button class="btn btn-sm btn-info" data-bs-toggle="collapse" data-bs-target="#details-${index}">
+          Details
+        </button>
+      </td>
     `;
+
+    const detailsRow = document.createElement("tr");
+    detailsRow.innerHTML = `
+      <td colspan="5">
+        <div id="details-${index}" class="collapse">
+          <ul class="list-group list-group-flush">
+            <li class="list-group-item"><strong>Tag:</strong> ${prog.tag}</li>
+            <li class="list-group-item"><strong>GPL Compatible:</strong> 
+              <span class="badge bg-${prog.gpl_compatible ? "success" : "danger"}">
+                ${prog.gpl_compatible ? "Yes" : "No"}
+              </span>
+            </li>
+            <li class="list-group-item"><strong>Loaded At:</strong> ${new Date(prog.loaded_at * 1000).toLocaleString()}</li>
+            <li class="list-group-item"><strong>UID:</strong> ${prog.uid}</li>
+            <li class="list-group-item"><strong>Orphaned:</strong> 
+              <span class="badge bg-${prog.orphaned ? "warning" : "secondary"}">
+                ${prog.orphaned ? "Yes" : "No"}
+              </span>
+            </li>
+            <li class="list-group-item"><strong>Bytes Translated:</strong> ${prog.bytes_xlated}</li>
+            <li class="list-group-item"><strong>JITed:</strong> 
+              <span class="badge bg-${prog.jited ? "primary" : "secondary"}">
+                ${prog.jited ? "Yes" : "No"}
+              </span>
+            </li>
+            <li class="list-group-item"><strong>Bytes JITed:</strong> ${prog.bytes_jited}</li>
+            <li class="list-group-item"><strong>Bytes Memlock:</strong> ${prog.bytes_memlock}</li>
+            <li class="list-group-item"><strong>Map IDs:</strong> ${prog.map_ids.join(", ") || "None"}</li>
+            <li class="list-group-item"><strong>BTF ID:</strong> ${prog.btf_id}</li>
+          </ul>
+        </div>
+      </td>
+    `;
+
     tbody.appendChild(row);
+    tbody.appendChild(detailsRow);
   });
 }
 
@@ -112,8 +146,7 @@ function updateLoadedTable(loaded) {
 document.getElementById("ebpf-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   showLoading(true);
-
-  const action = document.getElementById("action").value; // load, attach, detach, unload
+  const action = document.getElementById("action").value;
   const program = document.getElementById("programInput").value.trim();
   const pinPath = document.getElementById("pinPath").value.trim();
   const typeVal = document.getElementById("typeInput").value.trim();
@@ -131,7 +164,6 @@ document.getElementById("ebpf-form").addEventListener("submit", async (e) => {
     } else {
       showToast("Unknown action: " + action, true);
     }
-    // Refresh lists
     fetchPrograms();
   } catch (err) {
     showToast("Error: " + err.message, true);
@@ -140,9 +172,7 @@ document.getElementById("ebpf-form").addEventListener("submit", async (e) => {
   }
 });
 
-/* ------- Action Helpers ------- */
-
-// 1) Load
+// Action Helpers
 async function doLoad(program, pinPath, progType) {
   if (!program) {
     showToast("Please select or type a .o file name", true);
@@ -151,7 +181,6 @@ async function doLoad(program, pinPath, progType) {
   const body = { program };
   if (pinPath) body.pin_path = pinPath;
   if (progType) body.type = progType;
-
   const res = await fetch("/api/programs/load", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -165,7 +194,6 @@ async function doLoad(program, pinPath, progType) {
   }
 }
 
-// 2) Unload
 async function doUnload(program, pinPath) {
   const body = {};
   if (pinPath) {
@@ -189,7 +217,6 @@ async function doUnload(program, pinPath) {
   }
 }
 
-// 3) Attach
 async function doAttach(pinPath, attachType, target) {
   if (!pinPath) {
     showToast("Pin path required for attach", true);
@@ -198,7 +225,6 @@ async function doAttach(pinPath, attachType, target) {
   const body = { pin_path: pinPath };
   if (attachType) body.attach_type = attachType;
   if (target) body.target = target;
-
   const res = await fetch("/api/programs/attach", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -212,7 +238,6 @@ async function doAttach(pinPath, attachType, target) {
   }
 }
 
-// 4) Detach
 async function doDetach(pinPath, attachType, target) {
   if (!pinPath) {
     showToast("Pin path required for detach", true);
@@ -224,7 +249,6 @@ async function doDetach(pinPath, attachType, target) {
   }
   const body = { pin_path: pinPath, attach_type: attachType };
   if (target) body.target = target;
-
   const res = await fetch("/api/programs/detach", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
