@@ -59,4 +59,4 @@ web: $(VENV)/bin/activate
 
 .PHONY: clean
 clean:
-	-rm -rf $(EBPF_DIR)/*.o $(EBPF_DIR)/*.skel.h $(EBPF_DIR)/vmlinux.h $(APP) $(VENV)
+	rm -rf $(EBPF_DIR)/*.o $(EBPF_DIR)/*.skel.h $(EBPF_DIR)/vmlinux.h $(APP)
