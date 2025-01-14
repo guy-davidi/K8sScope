@@ -9,6 +9,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const ebpfForm = document.getElementById("ebpf-form");
   if (ebpfForm) {
     ebpfForm.addEventListener("submit", handleFormSubmit);
+  } else {
+    console.error("[DEBUG] ebpf-form element not found.");
   }
 });
 
@@ -23,7 +25,10 @@ function showLoading(show) {
 function showToast(message, isError = false) {
   console.log(`[DEBUG] Toast: ${message} (isError=${isError})`);
   const toastContainer = document.getElementById("toastContainer");
-  if (!toastContainer) return;
+  if (!toastContainer) {
+    console.error("[DEBUG] toastContainer element not found.");
+    return;
+  }
 
   const toastEl = document.createElement("div");
   toastEl.className =
@@ -32,7 +37,6 @@ function showToast(message, isError = false) {
   toastEl.ariaLive = "assertive";
   toastEl.ariaAtomic = "true";
 
-  // Using template literals for the toast body
   toastEl.innerHTML = `
     <div class="d-flex">
       <div class="toast-body">
@@ -57,25 +61,24 @@ function showToast(message, isError = false) {
   });
 }
 
-// ** Fetch the list of .o files & loaded eBPF programs
+// Fetch the list of .o files & loaded eBPF programs
 async function fetchPrograms() {
+  console.log("[DEBUG] fetchPrograms() called");
   showLoading(true);
   try {
     const res = await fetch("/api/programs");
+    console.log("[DEBUG] fetchPrograms response status:", res.status);
     if (!res.ok) {
-      // If server responds with error code (e.g., 500), handle gracefully
       const errorMsg = await res.text();
       showToast(`Failed to fetch programs: ${errorMsg}`, true);
       return;
     }
     const data = await res.json();
-    if (data.error) {
-      showToast(data.error, true);
-      return;
-    }
+    console.log("[DEBUG] fetchPrograms data:", data);
     updateOFileList(data.programs || []);
     updateLoadedTable(data.loaded || []);
   } catch (err) {
+    console.error("[DEBUG] fetchPrograms error:", err);
     showToast("Error fetching programs: " + err.message, true);
   } finally {
     showLoading(false);
@@ -104,7 +107,7 @@ function updateOFileList(programs) {
     li.textContent = prog;
     li.style.cursor = "pointer";
 
-    // Click => place filename into input
+    // On click, fill the program input field with the file name
     li.addEventListener("click", () => {
       document.getElementById("programInput").value = prog;
     });
@@ -202,7 +205,7 @@ function updateLoadedTable(loaded) {
 async function handleFormSubmit(e) {
   e.preventDefault();
   showLoading(true);
-
+  console.log("[DEBUG] Form submission triggered");
   const action = document.getElementById("action").value;
   const program = document.getElementById("programInput").value.trim();
   const pinPath = document.getElementById("pinPath").value.trim();
@@ -211,20 +214,26 @@ async function handleFormSubmit(e) {
 
   try {
     if (action === "load") {
+      console.log("[DEBUG] Calling doLoad with:", { program, pinPath, typeVal });
       await doLoad(program, pinPath, typeVal);
     } else if (action === "unload") {
+      console.log("[DEBUG] Calling doUnload with:", { program, pinPath });
       await doUnload(program, pinPath);
     } else if (action === "attach") {
+      console.log("[DEBUG] Calling doAttach with:", { pinPath, typeVal, targetVal });
       await doAttach(pinPath, typeVal, targetVal);
     } else if (action === "detach") {
+      console.log("[DEBUG] Calling doDetach with:", { pinPath, typeVal, targetVal });
       await doDetach(pinPath, typeVal, targetVal);
     } else {
       showToast("Unknown action: " + action, true);
+      console.error("[DEBUG] Unknown action:", action);
     }
 
     // Refresh the .o files and loaded programs
     await fetchPrograms();
   } catch (err) {
+    console.error("[DEBUG] Error in form submission:", err);
     showToast("Error: " + err.message, true);
   } finally {
     showLoading(false);
@@ -232,7 +241,9 @@ async function handleFormSubmit(e) {
 }
 
 // Action Helpers
+
 async function doLoad(program, pinPath, progType) {
+  console.log("[DEBUG] doLoad called with:", { program, pinPath, progType });
   if (!program) {
     showToast("Please select or type a .o file name", true);
     throw new Error("No program specified");
@@ -242,12 +253,15 @@ async function doLoad(program, pinPath, progType) {
   if (pinPath) body.pin_path = pinPath;
   if (progType) body.type = progType;
 
+  console.log("[DEBUG] Sending load request body:", body);
+  
   const res = await fetch("/api/programs/load", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   const data = await res.json();
+  console.log("[DEBUG] doLoad response:", data);
   if (!res.ok || data.error) {
     showToast(data.error || data.message || "Unknown error", true);
     throw new Error(data.error || data.message || "Load failed");
@@ -256,6 +270,7 @@ async function doLoad(program, pinPath, progType) {
 }
 
 async function doUnload(program, pinPath) {
+  console.log("[DEBUG] doUnload called with:", { program, pinPath });
   const body = {};
   if (pinPath) {
     body.pin_path = pinPath;
@@ -266,12 +281,15 @@ async function doUnload(program, pinPath) {
     throw new Error("No unload path or program");
   }
 
+  console.log("[DEBUG] Sending unload request with body:", body);
+  
   const res = await fetch("/api/programs/unload", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   const data = await res.json();
+  console.log("[DEBUG] doUnload response:", data);
   if (!res.ok || data.error) {
     showToast(data.error || data.message || "Unknown error", true);
     throw new Error(data.error || data.message || "Unload failed");
@@ -280,20 +298,53 @@ async function doUnload(program, pinPath) {
 }
 
 async function doAttach(pinPath, attachType, target) {
+  console.log("[DEBUG] doAttach called with:", { pinPath, attachType, target });
+  
+  // If no pinPath is provided, attempt to derive one from the program input.
   if (!pinPath) {
-    showToast("Pin path required for attach", true);
-    throw new Error("No pin path");
+    const program = document.getElementById("programInput").value.trim();
+    if (program) {
+      let defaultPin = program;
+      if (defaultPin.endsWith(".bpf.o")) {
+        defaultPin = defaultPin.slice(0, -6); // Remove trailing ".bpf.o"
+      } else {
+        defaultPin = defaultPin.split('.')[0];
+      }
+      pinPath = "/sys/fs/bpf/" + defaultPin;
+      console.log("[DEBUG] Using fallback pinPath:", pinPath);
+    } else {
+      showToast("Pin path required for attach", true);
+      throw new Error("No pin path");
+    }
   }
-  const body = { pin_path: pinPath };
-  if (attachType) body.attach_type = attachType;
-  if (target) body.target = target;
 
+  // Set default attachType if not provided.
+  if (!attachType) {
+    attachType = "xdp"; // Default to xdp if not specified
+    console.log("[DEBUG] Defaulting attachType to 'xdp'");
+  }
+
+  // Set default target based on attachType if target is not provided.
+  if (!target) {
+    if (attachType.toLowerCase() === "xdp") {
+      target = "eth0";
+      console.log("[DEBUG] Defaulting target to 'eth0' for xdp");
+    } else if (attachType.toLowerCase() === "tracepoint") {
+      target = "tracepoint/syscalls/sys_enter_execve";
+      console.log("[DEBUG] Defaulting target to 'tracepoint/syscalls/sys_enter_execve' for tracepoint");
+    }
+  }
+  
+  const body = { pin_path: pinPath, attach_type: attachType, target: target };
+  console.log("[DEBUG] Sending attach request with body:", body);
+  
   const res = await fetch("/api/programs/attach", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   const data = await res.json();
+  console.log("[DEBUG] doAttach response:", data);
   if (!res.ok || data.error) {
     showToast(data.error || data.message || "Unknown error", true);
     throw new Error(data.error || data.message || "Attach failed");
@@ -302,6 +353,7 @@ async function doAttach(pinPath, attachType, target) {
 }
 
 async function doDetach(pinPath, attachType, target) {
+  console.log("[DEBUG] doDetach called with:", { pinPath, attachType, target });
   if (!pinPath) {
     showToast("Pin path required for detach", true);
     throw new Error("No pin path");
@@ -312,13 +364,16 @@ async function doDetach(pinPath, attachType, target) {
   }
   const body = { pin_path: pinPath, attach_type: attachType };
   if (target) body.target = target;
-
+  
+  console.log("[DEBUG] Sending detach request with body:", body);
+  
   const res = await fetch("/api/programs/detach", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
   const data = await res.json();
+  console.log("[DEBUG] doDetach response:", data);
   if (!res.ok || data.error) {
     showToast(data.error || data.message || "Unknown error", true);
     throw new Error(data.error || data.message || "Detach failed");
