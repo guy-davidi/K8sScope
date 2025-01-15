@@ -21,9 +21,111 @@ function showLoading(show) {
   spinner.style.display = show ? "block" : "none";
 }
 
-// Show a Bootstrap 5 toast message
+/**
+ * Opens a new window with a styled error message.
+ * Utilizes Bootstrap 5 for styling.
+ * @param {string} message - The error message to display.
+ */
+function openErrorWindow(message) {
+  const errorWindow = window.open("", "_blank", "width=600,height=400,scrollbars=yes");
+  if (!errorWindow) {
+    console.error("[DEBUG] Could not open error window.");
+    return;
+  }
+
+  errorWindow.document.write(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <title>Error Details</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <!-- Bootstrap 5 CSS -->
+      <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+      <style>
+        body { 
+          font-family: Arial, sans-serif; 
+          padding: 20px; 
+          background-color: #f8f9fa;
+        }
+        .error-container {
+          max-width: 600px;
+          margin: auto;
+          box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .error-header {
+          background-color: #dc3545;
+          color: white;
+          padding: 15px;
+          border-radius: 5px 5px 0 0;
+        }
+        .error-body {
+          padding: 20px;
+          background-color: white;
+          border: 1px solid #dc3545;
+          border-top: none;
+          border-radius: 0 0 5px 5px;
+        }
+        .error-footer {
+          margin-top: 20px;
+          text-align: right;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="error-container">
+        <div class="error-header">
+          <h4 class="mb-0">An Error Occurred</h4>
+        </div>
+        <div class="error-body">
+          <p>${escapeHtml(message)}</p>
+        </div>
+        <div class="error-footer">
+          <button id="close-btn" class="btn btn-danger">Close</button>
+        </div>
+      </div>
+      
+      <!-- Bootstrap 5 JS (for interactive components) -->
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+      <script>
+        document.getElementById('close-btn').addEventListener('click', () => {
+          window.close();
+        });
+      </script>
+    </body>
+    </html>
+  `);
+  errorWindow.document.close();
+}
+
+/**
+ * Escapes HTML characters to prevent XSS attacks.
+ * @param {string} unsafe - The unsafe string to escape.
+ * @returns {string} - The escaped string.
+ */
+function escapeHtml(unsafe) {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+/**
+ * Show a Bootstrap 5 toast message.
+ * Also opens a styled error window if isError is true.
+ * @param {string} message - Message to display.
+ * @param {boolean} isError - Set to true if an error occurred.
+ */
 function showToast(message, isError = false) {
   console.log(`[DEBUG] Toast: ${message} (isError=${isError})`);
+
+  // If error, open the error window with our styled output.
+  if (isError) {
+    openErrorWindow(message);
+  }
+  
   const toastContainer = document.getElementById("toastContainer");
   if (!toastContainer) {
     console.error("[DEBUG] toastContainer element not found.");
