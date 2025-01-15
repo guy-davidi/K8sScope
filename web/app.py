@@ -82,13 +82,6 @@ def load_program():
     pin_path = data.get("pin_path") or f"/sys/fs/bpf/{default_pin}"
     pin_path = make_absolute_pin_path(pin_path)
 
-    # Ensure the pin_path directory exists.
-    try:
-        os.makedirs(pin_path, exist_ok=True)
-    except OSError as e:
-        app.logger.error(f"[LOAD PROGRAM ERROR] Failed to create pin path: {e}")
-        return jsonify({"error": f"Failed to create pin path: {str(e)}"}), 500
-
     # Build the command using loadall.
     cmd = ["bpftool", "prog", "loadall", program_path, pin_path]
 

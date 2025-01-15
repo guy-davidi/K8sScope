@@ -1,2 +1,50 @@
-*/build
-*/*.o
+# Exclude compiled C and eBPF object files
+*.o
+*.skel.h
+*.out
+*.a
+*.so
+
+# Exclude executable binary files
+exec
+
+# Exclude generated headers
+vmlinux.h
+
+# Exclude temporary build and debug files
+*.d
+*.s
+*.tmp
+
+# Exclude virtual environment (Python)
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Exclude Docker build artifacts
+*.tar
+*.img
+*.squashfs
+docker-compose.override.yml
+
+# Exclude logs and temporary files
+*.log
+*.pid
+*.swp
+*.bak
+*.tmp
+*~
+
+# Exclude system files
+.DS_Store
+Thumbs.db
+
+# Exclude IDE or editor-specific files
+.vscode/
+.idea/
+*.iml
+*.code-workspace
+
+# Exclude BPF filesystem mount point (if accidentally created in the repo)
+sys/fs/bpf/
