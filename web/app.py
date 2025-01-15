@@ -3,37 +3,54 @@ import os
 import json
 import subprocess
 from flask import Flask, request, jsonify, render_template
-# (Optional) For improved logging or cross-origin resource sharing:
-# from flask_cors import CORS
 
 app = Flask(__name__, template_folder='templates')
-# CORS(app)  # Uncomment if you want to allow cross-origin requests during development
 
 # Directory for scanning .o files (adjust as needed)
 EBPF_SRC_DIR = os.path.abspath("ebpf/src")
+
 
 def make_absolute_pin_path(pin_path):
     """
     If pin_path is not absolute (does not start with '/'), assume it's relative to /sys/fs/bpf
     """
-    if not pin_path.startswith("/"):
-        return os.path.join("/sys/fs/bpf", pin_path)
-    return pin_path
+    return os.path.join("/sys/fs/bpf", pin_path) if not pin_path.startswith("/") else pin_path
+
+
+def run_command(cmd):
+    """Run a command with sudo and capture output."""
+    try:
+        result = subprocess.run(["sudo"] + cmd, check=True, capture_output=True, text=True)
+        return result.stdout, result.stderr, None
+    except subprocess.CalledProcessError as e:
+        error_message = e.stderr.strip() if e.stderr else "Unknown error"
+        return None, None, error_message
+
+
+def get_loaded_programs():
+    """Return loaded eBPF programs with detailed information."""
+    cmd = ["bpftool", "prog", "show", "--json"]
+    stdout, _, error = run_command(cmd)
+    if error:
+        app.logger.error(f"[ERROR] bpftool prog show: {error}")
+        return []
+
+    try:
+        return json.loads(stdout)
+    except json.JSONDecodeError as e:
+        app.logger.error(f"[ERROR] JSON decode: {str(e)}")
+        return []
+
 
 @app.route("/")
 def home():
     """Serve the advanced UI in index.html."""
     return render_template("index.html")
 
+
 @app.route("/api/programs", methods=["GET"])
 def list_programs():
-    """
-    Returns JSON:
-    {
-      "programs": [...],  # .o files from EBPF_SRC_DIR
-      "loaded": [...],    # loaded programs from bpftool prog show --json
-    }
-    """
+    """List available and loaded eBPF programs."""
     try:
         programs = [
             f for f in os.listdir(EBPF_SRC_DIR)
@@ -43,262 +60,102 @@ def list_programs():
         return jsonify({"programs": programs, "loaded": loaded_programs})
     except Exception as e:
         app.logger.error(f"Failed to list programs: {str(e)}")
-        return jsonify({"error": f"Failed to list programs: {str(e)}"}), 500
+        return jsonify({"error": "Failed to list programs"}), 500
+
 
 @app.route("/api/programs/load", methods=["POST"])
 def load_program():
-    """
-    Expects JSON like:
-    {
-      "program": "myprog.bpf.o",      # .o file in ebpf/src (with .bpf.o suffix)
-      "pin_path": "myprog" or "/sys/fs/bpf/myprog"  
-                                       (optional; if not absolute, will be relative to /sys/fs/bpf)
-    }
-    This endpoint always uses bpftool's loadall mode, so that all programs in the object file are loaded 
-    and pinned under the provided pin_path (which is treated as a directory). The default pin name is derived 
-    from the program name with the trailing ".bpf.o" removed.
-    """
+    """Load and pin an eBPF program using bpftool."""
     data = request.get_json() or {}
-
-    # Validate required parameter.
     program = data.get("program")
-    if not program:
-        return jsonify({"error": "Missing 'program' (.o file)"}), 400
 
-    # Ensure the program file has the correct suffix.
-    if not program.endswith(".bpf.o"):
-        return jsonify({"error": "Invalid program file. Expected a .bpf.o file"}), 400
+    if not program or not program.endswith(".bpf.o"):
+        return jsonify({"error": "Invalid or missing 'program' (.bpf.o file required)"}), 400
 
-    # Build the full path to the .o file.
     program_path = os.path.join(EBPF_SRC_DIR, program)
     if not os.path.isfile(program_path):
         return jsonify({"error": f".o file not found: {program_path}"}), 404
 
-    # Create a default pin name by removing the trailing '.bpf.o' from the program name.
-    default_pin = program[:-len(".bpf.o")]
-
-    # Get the pin_path parameter (if provided) or use default.
-    # For loadall, the pin_path will be treated as a directory (prefix).
-    pin_path = data.get("pin_path") or f"/sys/fs/bpf/{default_pin}"
-    pin_path = make_absolute_pin_path(pin_path)
-
-    # Build the command using loadall.
+    pin_path = make_absolute_pin_path(data.get("pin_path") or program[:-len(".bpf.o")])
     cmd = ["bpftool", "prog", "loadall", program_path, pin_path]
 
-    app.logger.debug(f"Running command: {' '.join(['sudo'] + cmd)}")
-    print(f"Running command: {' '.join(['sudo'] + cmd)}")
-    try:
-        result = subprocess.run(["sudo"] + cmd, check=True, capture_output=True, text=True)
-        app.logger.debug(f"[LOAD PROGRAM] stdout: {result.stdout}")
-        app.logger.debug(f"[LOAD PROGRAM] stderr: {result.stderr}")
-        return jsonify({
-            "message": f"Loaded {program} at {pin_path} using loadall mode"
-        }), 200
-    except subprocess.CalledProcessError as e:
-        error_message = e.stderr.strip() if e.stderr else "Unknown error"
-        app.logger.error(f"[LOAD PROGRAM ERROR] {error_message}")
-        return jsonify({"error": f"Failed to load: {error_message}"}), 500
+    _, _, error = run_command(cmd)
+    if error:
+        return jsonify({"error": f"Failed to load program: {error}"}), 500
+
+    return jsonify({"message": f"Program loaded at {pin_path}"}), 200
+
 
 @app.route("/api/programs/unload", methods=["POST"])
 def unload_program():
-    """
-    Expects JSON with either:
-      { "program": "myprog.bpf.o" } => uses default pin path /sys/fs/bpf/<program_name>
-    or
-      { "pin_path": "/sys/fs/bpf/myprog" }
-    Unloading is done by removing the pinned file at the pin path.
-    """
+    """Unload a pinned eBPF program by removing its pin path."""
     data = request.get_json() or {}
-    app.logger.debug(f"[UNLOAD PROGRAM] Received data: {data}")
-
     pin_path = data.get("pin_path")
     program = data.get("program")
 
-    if pin_path:
-        app.logger.debug(f"[UNLOAD PROGRAM] Using provided pin path: {pin_path}")
-    elif program:
-        if program.endswith(".bpf.o"):
-            program_name = program[:-len(".bpf.o")]
-            pin_path = f"/sys/fs/bpf/{program_name}"
-            app.logger.debug(f"[UNLOAD PROGRAM] Constructed pin path from program: {pin_path}")
-        else:
-            app.logger.error("[UNLOAD PROGRAM] Invalid program name format")
-            return jsonify({"error": "Invalid program name format. Expected *.bpf.o"}), 400
-    else:
-        app.logger.error("[UNLOAD PROGRAM] Missing pin_path or program")
-        return jsonify({"error": "Missing pin_path or program"}), 400
+    if not pin_path and program and program.endswith(".bpf.o"):
+        pin_path = make_absolute_pin_path(program[:-len(".bpf.o")])
 
-    if not os.path.isabs(pin_path):
-        app.logger.error(f"[UNLOAD PROGRAM] Non-absolute pin path: {pin_path}")
-        return jsonify({"error": "Pin path must be absolute"}), 400
+    if not pin_path or not os.path.isabs(pin_path):
+        return jsonify({"error": "Missing or invalid 'pin_path'"}), 400
+
     if not os.path.exists(pin_path):
-        app.logger.debug(f"[UNLOAD PROGRAM] Pin path not found: {pin_path}")
         return jsonify({"error": f"Pin path not found: {pin_path}"}), 404
 
-    # Use sudo with subprocess to remove the pin path
-    cmd = ["sudo", "rm", "-rf", pin_path]
-    app.logger.debug(f"[UNLOAD PROGRAM] Running command: {cmd}")
-    try:
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-        app.logger.debug(f"[UNLOAD PROGRAM] Command stdout: {result.stdout}")
-        app.logger.debug(f"[UNLOAD PROGRAM] Command stderr: {result.stderr}")
-        return jsonify({"message": f"Successfully unloaded pinned program at {pin_path}"}), 200
-    except subprocess.CalledProcessError as e:
-        error_message = e.stderr.strip() if e.stderr else "Unknown error"
-        app.logger.error(f"[UNLOAD PROGRAM ERROR] Failed to remove pin path: {error_message}")
-        return jsonify({"error": f"Failed to unload program: {error_message}"}), 500
+    cmd = ["rm", "-rf", pin_path]
+    _, _, error = run_command(cmd)
+    if error:
+        return jsonify({"error": f"Failed to unload program: {error}"}), 500
+
+    return jsonify({"message": f"Successfully unloaded program at {pin_path}"}), 200
 
 
 @app.route("/api/programs/attach", methods=["POST"])
 def attach_program():
-    """
-    Expects JSON:
-    {
-      "pin_path": "/sys/fs/bpf/myprog",
-      "attach_type": "tracepoint" or "xdp",
-      "target": "...tracepoint path..." or interface for xdp
-    }
-    """
+    """Attach a loaded eBPF program to a target using bpftool."""
     data = request.get_json() or {}
-    pin_path = data.get("pin_path")
-    attach_type = data.get("attach_type", "")
-    target = data.get("target", "")
+    pin_path = make_absolute_pin_path(data.get("pin_path"))
+    attach_type = data.get("attach_type", "tracepoint")
+    target = data.get("target") or ("tracepoint/syscalls/sys_enter_execve" if attach_type == "tracepoint" else "eth0")
 
-    if not pin_path:
-        return jsonify({"error": "Missing 'pin_path'"}), 400
-
-    # Ensure the pin_path is absolute.
-    pin_path = make_absolute_pin_path(pin_path)
-
-    # Use default attach_type if not provided
-    if not attach_type:
-        attach_type = "tracepoint"
-
-    # Provide a default target if not specified
-    if not target:
-        if attach_type == "tracepoint":
-            target = "tracepoint/syscalls/sys_enter_execve"
-        elif attach_type == "xdp":
-            target = "eth0"
-
-    # Construct bpftool command based on attach_type
     if attach_type == "tracepoint":
-        cmd = [
-            "bpftool", "prog", "attach",
-            "pinned", pin_path,
-            "tracepoint", target
-        ]
+        cmd = ["bpftool", "prog", "attach", "pinned", pin_path, "tracepoint", target]
     elif attach_type == "xdp":
-        # Correct ordering: device first, then pinned
-        cmd = [
-            "bpftool", "net", "attach",
-            "xdp", "dev", target,
-            "pinned", pin_path
-        ]
+        cmd = ["bpftool", "net", "attach", "xdp", "dev", target, "pinned", pin_path]
     else:
         return jsonify({"error": f"Unsupported attach_type: {attach_type}"}), 400
 
-    try:
-        result = subprocess.run(["sudo"] + cmd, check=True, capture_output=True, text=True)
-        app.logger.debug(f"[ATTACH PROGRAM] cmd: {cmd}\nstdout: {result.stdout}\nstderr: {result.stderr}")
-        return jsonify({"message": f"Attached {pin_path} => {attach_type}:{target}"}), 200
-    except subprocess.CalledProcessError as e:
-        error_message = e.stderr.strip() if e.stderr else "Unknown error"
-        app.logger.error(f"[ATTACH PROGRAM ERROR] {error_message}")
-        return jsonify({"error": f"Attach failed: {error_message}"}), 500
+    _, _, error = run_command(cmd)
+    if error:
+        return jsonify({"error": f"Attach failed: {error}"}), 500
+
+    return jsonify({"message": f"Attached {pin_path} to {attach_type}:{target}"}), 200
+
 
 @app.route("/api/programs/detach", methods=["POST"])
 def detach_program():
-    """
-    Expects JSON:
-    {
-      "pin_path": "/sys/fs/bpf/myprog",  # for tracepoint detach (required)
-      "attach_type": "tracepoint" or "xdp",
-      "target": "...tracepoint path..." or interface for xdp
-    }
-    For tracepoints, we'll run:
-      bpftool prog detach pinned <pin_path> tracepoint <target>
-    For XDP, we'll run:
-      bpftool net detach xdp dev <target>
-    """
+    """Detach an attached eBPF program using bpftool."""
     data = request.get_json() or {}
-    pin_path = data.get("pin_path")
-    attach_type = data.get("attach_type", "")
-    target = data.get("target", "")
+    pin_path = make_absolute_pin_path(data.get("pin_path"))
+    attach_type = data.get("attach_type")
+    target = data.get("target")
 
-    if not pin_path:
-        return jsonify({"error": "Missing 'pin_path'"}), 400
-
-    if not attach_type:
-        return jsonify({"error": "Missing 'attach_type'"}), 400
-
-    # Ensure the pin_path is absolute.
-    pin_path = make_absolute_pin_path(pin_path)
-
-    # Provide a default target if not specified
-    if not target:
-        if attach_type == "tracepoint":
-            target = "tracepoint/syscalls/sys_enter_execve"
-        elif attach_type == "xdp":
-            target = "eth0"
+    if not attach_type or not pin_path or not target:
+        return jsonify({"error": "Missing required parameters"}), 400
 
     if attach_type == "tracepoint":
-        cmd = [
-            "bpftool", "prog", "detach",
-            "pinned", pin_path,
-            "tracepoint", target
-        ]
+        cmd = ["bpftool", "prog", "detach", "pinned", pin_path, "tracepoint", target]
     elif attach_type == "xdp":
-        # bpftool net detach xdp for a device does not use 'pinned'
-        cmd = [
-            "bpftool", "net", "detach",
-            "xdp", "dev", target
-        ]
+        cmd = ["bpftool", "net", "detach", "xdp", "dev", target]
     else:
         return jsonify({"error": f"Unsupported attach_type: {attach_type}"}), 400
 
-    try:
-        result = subprocess.run(["sudo"] + cmd, check=True, capture_output=True, text=True)
-        app.logger.debug(f"[DETACH PROGRAM] cmd: {cmd}\nstdout: {result.stdout}\nstderr: {result.stderr}")
-        return jsonify({"message": f"Detached {pin_path} from {attach_type}:{target}"}), 200
-    except subprocess.CalledProcessError as e:
-        error_message = e.stderr.strip() if e.stderr else "Unknown error"
-        app.logger.error(f"[DETACH PROGRAM ERROR] {error_message}")
-        return jsonify({"error": f"Detach failed: {error_message}"}), 500
+    _, _, error = run_command(cmd)
+    if error:
+        return jsonify({"error": f"Detach failed: {error}"}), 500
 
-def get_loaded_programs():
-    """Return loaded eBPF programs with detailed information."""
-    try:
-        cmd = ["bpftool", "prog", "show", "--json"]
-        result = subprocess.run(["sudo"] + cmd, capture_output=True, text=True, check=True)
-        data = json.loads(result.stdout)
-        loaded = []
-        for prog in data:
-            loaded.append({
-                "id": prog.get("id"),
-                "name": prog.get("name"),
-                "type": prog.get("type"),
-                "pinned": prog.get("pinned"),  # Some programs might have a pinned path
-                "tag": prog.get("tag"),
-                "gpl_compatible": prog.get("gpl_compatible", False),
-                "loaded_at": prog.get("loaded_at"),
-                "uid": prog.get("uid"),
-                "orphaned": prog.get("orphaned", False),
-                "bytes_xlated": prog.get("bytes_xlated"),
-                "jited": prog.get("jited", False),
-                "bytes_jited": prog.get("bytes_jited"),
-                "bytes_memlock": prog.get("bytes_memlock"),
-                "map_ids": prog.get("map_ids", []),
-                "btf_id": prog.get("btf_id")
-            })
-        return loaded
-    except subprocess.CalledProcessError as e:
-        error_message = e.stderr.strip() if e.stderr else "Unknown error"
-        app.logger.error(f"[ERROR] bpftool prog show: {error_message}")
-        return []
-    except json.JSONDecodeError as e:
-        app.logger.error(f"[ERROR] JSON decode: {str(e)}")
-        return []
+    return jsonify({"message": f"Detached {pin_path} from {attach_type}:{target}"}), 200
+
 
 if __name__ == "__main__":
     # For production, consider using a proper production server like gunicorn
