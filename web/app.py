@@ -103,38 +103,51 @@ def load_program():
 def unload_program():
     """
     Expects JSON with either:
-      { "program": "myprog.o" } => uses default pin path /sys/fs/bpf/<default_pin>
+      { "program": "myprog.bpf.o" } => uses default pin path /sys/fs/bpf/<program_name>
     or
       { "pin_path": "/sys/fs/bpf/myprog" }
-    We'll run:
-      bpftool prog unload <pin_path>
+    Unloading is done by removing the pinned file at the pin path.
     """
     data = request.get_json() or {}
+    app.logger.debug(f"[UNLOAD PROGRAM] Received data: {data}")
+
     pin_path = data.get("pin_path")
     program = data.get("program")
 
-    if not pin_path and program:
-        default_pin = os.path.splitext(program)[0]
-        pin_path = f"/sys/fs/bpf/{default_pin}"
+    if pin_path:
+        app.logger.debug(f"[UNLOAD PROGRAM] Using provided pin path: {pin_path}")
+    elif program:
+        if program.endswith(".bpf.o"):
+            program_name = program[:-len(".bpf.o")]
+            pin_path = f"/sys/fs/bpf/{program_name}"
+            app.logger.debug(f"[UNLOAD PROGRAM] Constructed pin path from program: {pin_path}")
+        else:
+            app.logger.error("[UNLOAD PROGRAM] Invalid program name format")
+            return jsonify({"error": "Invalid program name format. Expected *.bpf.o"}), 400
+    else:
+        app.logger.error("[UNLOAD PROGRAM] Missing pin_path or program")
+        return jsonify({"error": "Missing pin_path or program"}), 400
 
-    if not pin_path:
-        return jsonify({"error": "No pin_path or program provided"}), 400
-
-    # Ensure the pin_path is absolute.
-    pin_path = make_absolute_pin_path(pin_path)
-
+    if not os.path.isabs(pin_path):
+        app.logger.error(f"[UNLOAD PROGRAM] Non-absolute pin path: {pin_path}")
+        return jsonify({"error": "Pin path must be absolute"}), 400
     if not os.path.exists(pin_path):
+        app.logger.debug(f"[UNLOAD PROGRAM] Pin path not found: {pin_path}")
         return jsonify({"error": f"Pin path not found: {pin_path}"}), 404
 
-    cmd = ["bpftool", "prog", "unload", pin_path]
+    # Use sudo with subprocess to remove the pin path
+    cmd = ["sudo", "rm", "-rf", pin_path]
+    app.logger.debug(f"[UNLOAD PROGRAM] Running command: {cmd}")
     try:
-        result = subprocess.run(["sudo"] + cmd, check=True, capture_output=True, text=True)
-        app.logger.debug(f"[UNLOAD PROGRAM] cmd: {cmd}\nstdout: {result.stdout}\nstderr: {result.stderr}")
-        return jsonify({"message": f"Unloaded pinned program {pin_path}"}), 200
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        app.logger.debug(f"[UNLOAD PROGRAM] Command stdout: {result.stdout}")
+        app.logger.debug(f"[UNLOAD PROGRAM] Command stderr: {result.stderr}")
+        return jsonify({"message": f"Successfully unloaded pinned program at {pin_path}"}), 200
     except subprocess.CalledProcessError as e:
         error_message = e.stderr.strip() if e.stderr else "Unknown error"
-        app.logger.error(f"[UNLOAD PROGRAM ERROR] {error_message}")
-        return jsonify({"error": f"Failed to unload: {error_message}"}), 500
+        app.logger.error(f"[UNLOAD PROGRAM ERROR] Failed to remove pin path: {error_message}")
+        return jsonify({"error": f"Failed to unload program: {error_message}"}), 500
+
 
 @app.route("/api/programs/attach", methods=["POST"])
 def attach_program():
