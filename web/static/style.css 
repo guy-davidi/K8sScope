@@ -1,46 +1,95 @@
 /* style.css */
 
-/* Body tweak: slightly off-white background to match the Bootstrap background theme. */
+/*===============================================
+  CSS Variables: Centralize colors, gradients, and spacing.
+================================================*/
+:root {
+  /* Background Colors */
+  --body-bg: #f8f9fa;
+
+  /* Toast Colors */
+  --toast-success-bg: #d4edda;
+  --toast-success-text: #155724;
+  --toast-danger-bg: #f8d7da;
+  --toast-danger-text: #721c24;
+
+  /* Card Header Gradients */
+  --card-header-info-gradient: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+  --card-header-secondary-gradient: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+  --card-header-dark-gradient: linear-gradient(135deg, #343a40 0%, #23272b 100%);
+
+  /* Others */
+  --o-file-hover-bg: #e2e6ea;
+  --transition-speed: 0.25s;
+}
+
+/*===============================================
+  Global Body Styles
+================================================*/
 body {
-  background-color: #f8f9fa;
+  background-color: var(--body-bg);
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
-/* Toast override: ensure success/error toasts stand out. */
+/*===============================================
+  Toast Overrides: Ensure toasts stand out
+================================================*/
 .toast.text-bg-success .toast-body {
-  background-color: #d4edda; /* Light green background */
-  color: #155724;           /* Dark green text */
+  background-color: var(--toast-success-bg);
+  color: var(--toast-success-text);
 }
+
 .toast.text-bg-danger .toast-body {
-  background-color: #f8d7da; /* Light red background */
-  color: #721c24;            /* Dark red text */
+  background-color: var(--toast-danger-bg);
+  color: var(--toast-danger-text);
 }
 
-/* Optional custom gradients for card headers */
+/*===============================================
+  Card Header Gradients
+================================================*/
 .card-header.bg-info {
-  background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
-}
-.card-header.bg-secondary {
-  background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
-}
-.card-header.bg-dark {
-  background: linear-gradient(135deg, #343a40 0%, #23272b 100%);
+  background: var(--card-header-info-gradient);
 }
 
-/* Example “Execute” button styling to stand out */
+.card-header.bg-secondary {
+  background: var(--card-header-secondary-gradient);
+}
+
+.card-header.bg-dark {
+  background: var(--card-header-dark-gradient);
+}
+
+/*===============================================
+  Form & Button Enhancements
+================================================*/
 #ebpf-form button[type="submit"] {
   font-size: 1.1rem;
   font-weight: 600;
   letter-spacing: 0.5px;
+  transition: background-color var(--transition-speed) ease, transform 0.15s ease;
 }
 
-/* Misc spacing or typography tweaks */
+/* Slight scale-up on hover for visual feedback */
+#ebpf-form button[type="submit"]:hover {
+  transform: scale(1.02);
+}
+
+/*===============================================
+  Typography & Spacing Tweaks
+================================================*/
 .form-label.fw-bold {
   font-weight: 600 !important;
   margin-bottom: 0.3rem !important;
 }
 
-/* .o file list hover effect */
+/*===============================================
+  .o File List Enhancements
+================================================*/
+#o-file-list li {
+  transition: background-color var(--transition-speed) ease;
+}
+
 #o-file-list li:hover {
-  background-color: #e2e6ea;
+  background-color: var(--o-file-hover-bg);
   cursor: pointer;
 }
