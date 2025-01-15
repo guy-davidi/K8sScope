@@ -3,86 +3,171 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>eBPF Program Manager - Advanced UI</title>
-
+  <title>eBPF Program Manager - All-in-One UI</title>
+  
   <!-- Bootstrap 5 CSS -->
   <link
     rel="stylesheet"
     href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
   />
-  <!-- Custom CSS -->
+  <!-- Custom CSS (if needed) -->
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
   <style>
-    /* Minimal inline style for the loading spinner */
-    .loading {
-      display: none;
+    /* Ensure the entire viewport is used and hide body scrolling */
+    html, body {
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
     }
+
+    /* Fixed navbar and footer heights */
+    .navbar {
+      height: 60px;
+      min-height: 60px;
+    }
+    .footer {
+      height: 50px;
+      line-height: 50px;
+      min-height: 50px;
+    }
+
+    /* Main content takes up remaining height */
+    .main-content {
+      height: calc(100vh - 110px); /* 100vh - (navbar 60px + footer 50px) */
+      overflow: hidden;
+    }
+
+    /* Use flex to make inner content stretch */
+    .main-content .row {
+      height: 100%;
+    }
+
+    /* Reduce vertical spacing within cards for a compact view */
+    .card {
+      margin-bottom: 0.5rem;
+    }
+    .card-header {
+      font-weight: 600;
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+    }
+    .card-body {
+      padding: 0.5rem 1rem;
+      font-size: 0.8rem;
+    }
+
+    /* Custom table styling for a compact look */
+    .custom-table th,
+    .custom-table td {
+      padding: 0.4rem;
+      vertical-align: middle;
+      font-size: 0.8rem;
+    }
+    .custom-table tbody tr:hover {
+      background-color: #f1f1f1;
+    }
+    
+    /* List items for .o Files */
+    #o-file-list li {
+      padding: 0.3rem 0.75rem;
+      border-bottom: 1px solid #e9ecef;
+      font-size: 0.8rem;
+    }
+    #o-file-list li:last-child {
+      border-bottom: none;
+    }
+
+    /* Adjust form elements for a more compact layout */
+    .form-label {
+      font-size: 0.85rem;
+    }
+    .form-control,
+    .form-select {
+      font-size: 0.8rem;
+      padding: 0.375rem 0.5rem;
+    }
+    .btn-lg {
+      padding: 0.375rem 0.75rem;
+      font-size: 0.9rem;
+    }
+
+    /* Force the two columns to share the available vertical space */
+    .left-column, .right-column {
+      height: 100%;
+      overflow: hidden;
+    }
+    /* Optional: Enable inner scrolling if content exceeds available space */
+    /* .left-column > .card-body, .right-column > .card-body {
+      overflow-y: auto;
+    } */
   </style>
 </head>
-<body class="bg-light">
-  <header class="container my-5">
-    <h1 class="text-center mb-4">eBPF Program Manager</h1>
-  </header>
-
-  <!-- Toast container (for success/error messages) -->
-  <div class="position-fixed top-0 end-0 p-3" style="z-index: 2000" aria-live="assertive" aria-atomic="true">
-    <div id="toastContainer" class="toast-container"></div>
-  </div>
-
-  <!-- Loading Spinner -->
-  <div class="loading text-center">
-    <div class="spinner-border text-primary" role="status">
-      <span class="visually-hidden">Loading...</span>
+<body>
+  <!-- Fixed Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">eBPF Program Manager</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+              data-bs-target="#navbarNav" aria-controls="navbarNav"
+              aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
     </div>
+  </nav>
+
+  <!-- Toast Container -->
+  <div class="position-fixed top-0 end-0 p-3" style="z-index: 1055;" aria-live="polite" aria-atomic="true">
+    <div id="toastContainer"></div>
   </div>
 
-  <main class="container">
+  <!-- Main Content Area -->
+  <div class="main-content container-fluid">
     <div class="row">
-      <!-- Left side: .o files & loaded programs -->
-      <section class="col-md-4" aria-label="Available Files and Loaded Programs">
+      <!-- Left Column: Available .o Files & Loaded Programs -->
+      <aside class="col-lg-4 left-column">
         <!-- .o Files Card -->
-        <div class="card mb-4">
+        <div class="card shadow-sm">
           <div class="card-header bg-info text-white">
-            <h5 class="mb-0">Available .o Files (ebpf/src)</h5>
+            <span>Available .o Files (ebpf/src)</span>
           </div>
-          <div class="card-body p-2" style="max-height: 300px; overflow:auto;">
+          <div class="card-body p-1" style="max-height: 40%;">
             <ul id="o-file-list" class="list-group list-group-flush"></ul>
           </div>
         </div>
 
         <!-- Loaded Programs Card -->
-        <div class="card mb-4">
+        <div class="card shadow-sm">
           <div class="card-header bg-secondary text-white">
-            <h5 class="mb-0">Loaded eBPF Programs</h5>
+            <span>Loaded eBPF Programs</span>
           </div>
-          <div class="card-body p-0">
-            <table class="table table-sm table-bordered mb-0">
+          <div class="card-body p-1" style="max-height: 55%;">
+            <table class="table table-sm table-bordered custom-table mb-0">
               <thead class="table-light">
                 <tr>
-                  <th scope="col">ID</th>
-                  <th scope="col">Name</th>
-                  <th scope="col">Type</th>
-                  <th scope="col">Pinned</th>
-                  <th scope="col">Actions</th>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Pinned</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody id="loaded-table-body"></tbody>
             </table>
           </div>
         </div>
-      </section>
+      </aside>
 
-      <!-- Right side: Single form with "wizard" style -->
-      <section class="col-md-8">
-        <div class="card">
+      <!-- Right Column: eBPF Management Form -->
+      <section class="col-lg-8 right-column">
+        <div class="card shadow-sm h-100">
           <div class="card-header bg-dark text-white">
-            <h5 class="mb-0">Manage eBPF</h5>
+            <span>Manage eBPF</span>
           </div>
           <div class="card-body">
             <form id="ebpf-form" novalidate>
               <!-- Step 1: Action -->
-              <div class="mb-3">
+              <div class="mb-2">
                 <label for="action" class="form-label fw-bold">Action</label>
                 <select id="action" class="form-select">
                   <option value="load">Load</option>
@@ -92,67 +177,93 @@
                 </select>
               </div>
 
-              <!-- Step 2: Choose .o file (for load) -->
-              <div class="mb-3">
+              <!-- Step 2: .o File Name -->
+              <div class="mb-2">
                 <label for="programInput" class="form-label fw-bold">.o File Name</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="programInput"
-                  placeholder="myprog.o"
-                />
-                <small class="text-muted">Pick from the left .o list or type your own from ebpf/src</small>
+                <input type="text" class="form-control" id="programInput" placeholder="myprog.o" />
+                <small class="text-muted">Pick from the left .o list or type your own</small>
               </div>
 
               <!-- Step 3: Pin Path -->
-              <div class="mb-3">
+              <div class="mb-2">
                 <label for="pinPath" class="form-label fw-bold">Pin Path</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="pinPath"
-                  placeholder="/sys/fs/bpf/myprog"
-                />
-                <small class="text-muted">Optional if loading/unloading: defaults to /sys/fs/bpf/&lt;program&gt;</small>
+                <input type="text" class="form-control" id="pinPath" placeholder="/sys/fs/bpf/myprog" />
+                <small class="text-muted">Optional: defaults to /sys/fs/bpf/&lt;program&gt;</small>
               </div>
 
               <!-- Step 4: Program Type / Attach Type -->
-              <div class="mb-3">
+              <div class="mb-2">
                 <label for="typeInput" class="form-label fw-bold">Type (tracepoint, xdp, etc.)</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="typeInput"
-                  placeholder="tracepoint"
-                />
-                <small class="text-muted">For load: "type tracepoint" or "type xdp". For attach: "attach_type"</small>
+                <input type="text" class="form-control" id="typeInput" placeholder="tracepoint" />
+                <small class="text-muted">For load: e.g. "type tracepoint" or "type xdp". For attach: "attach_type"</small>
               </div>
 
-              <!-- Step 5: Target (for attach/detach) -->
-              <div class="mb-3">
+              <!-- Step 5: Target -->
+              <div class="mb-2">
                 <label for="targetInput" class="form-label fw-bold">Target (tracepoint path or interface)</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="targetInput"
-                  placeholder="/sys/kernel/debug/tracing/events/syscalls/sys_enter_execve or eth0"
-                />
-                <small class="text-muted">Leave empty to default to "sys_enter_execve" if tracepoint, or "eth0" if XDP</small>
+                <input type="text" class="form-control" id="targetInput" placeholder="/sys/kernel/... or eth0" />
+                <small class="text-muted">Default: "sys_enter_execve" or "eth0"</small>
               </div>
 
-              <button type="submit" class="btn btn-success w-100">
-                <strong>Execute</strong>
-              </button>
+              <div class="d-grid">
+                <button type="submit" class="btn btn-success btn-lg">
+                  <strong>Execute</strong>
+                </button>
+              </div>
             </form>
           </div>
         </div>
       </section>
     </div>
-  </main>
+  </div>
+
+  <!-- Fixed Footer -->
+  <footer class="footer bg-primary text-white text-center">
+    <small>&copy; 2025 eBPF Program Manager. All rights reserved.</small>
+  </footer>
 
   <!-- Bootstrap Bundle JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <!-- Our custom script -->
+  <!-- Custom JS -->
   <script src="{{ url_for('static', filename='main.js') }}"></script>
+
+  <script>
+    // Function to show a success toast message
+    function showSuccessToast(message) {
+      // Create the toast element
+      const toastElem = document.createElement('div');
+      toastElem.className = 'toast align-items-center text-bg-success border-0';
+      toastElem.setAttribute('role', 'alert');
+      toastElem.setAttribute('aria-live', 'assertive');
+      toastElem.setAttribute('aria-atomic', 'true');
+      toastElem.innerHTML = `
+        <div class="d-flex">
+          <div class="toast-body">${message}</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+      `;
+      
+      // Append the toast element to the toast container
+      const toastContainer = document.getElementById('toastContainer');
+      toastContainer.appendChild(toastElem);
+      
+      // Initialize and show the toast using Bootstrap's Toast API
+      const toast = new bootstrap.Toast(toastElem, { delay: 3000 });
+      toast.show();
+
+      // Remove the toast element from the DOM once hidden
+      toastElem.addEventListener('hidden.bs.toast', () => {
+        toastElem.remove();
+      });
+    }
+
+    // Example: Show a success toast when the form is submitted
+    document.getElementById('ebpf-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      // TODO: Your process logic here...
+      // When process passes:
+      showSuccessToast("Process completed successfully!");
+    });
+  </script>
 </body>
 </html>
