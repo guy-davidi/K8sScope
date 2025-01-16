@@ -64,7 +64,7 @@ docker: $(APP)
 
 # Run the web application inside the virtual environment
 .PHONY: web
-web: $(VENV)/bin/activate bpf mount_debugfs mount_bpf
+web: $(VENV)/bin/activate bpf mount_debugfs mount_bpf $(APP)
 	@echo "Starting the web application..."
 	$(VENV)/bin/python3 web/app.py
 
