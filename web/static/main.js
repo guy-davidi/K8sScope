@@ -1,11 +1,8 @@
-// main.js
-
 // Run once the DOM is fully loaded
 document.addEventListener("DOMContentLoaded", () => {
   console.log("[DEBUG] DOM Content Loaded. Fetching programs...");
   fetchPrograms();
 
-  // Set up form submission handler explicitly in case it’s not guaranteed in HTML
   const ebpfForm = document.getElementById("ebpf-form");
   if (ebpfForm) {
     ebpfForm.addEventListener("submit", handleFormSubmit);
@@ -14,7 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// Show or hide the loading spinner
+// Function to show/hide loading indicator (if applicable)
 function showLoading(show) {
   const spinner = document.querySelector(".loading");
   if (!spinner) return;
@@ -32,7 +29,6 @@ function openErrorWindow(message) {
     console.error("[DEBUG] Could not open error window.");
     return;
   }
-
   errorWindow.document.write(`
     <!DOCTYPE html>
     <html lang="en">
@@ -40,36 +36,13 @@ function openErrorWindow(message) {
       <meta charset="UTF-8">
       <title>Error Details</title>
       <meta name="viewport" content="width=device-width, initial-scale=1">
-      <!-- Bootstrap 5 CSS -->
       <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
       <style>
-        body { 
-          font-family: Arial, sans-serif; 
-          padding: 20px; 
-          background-color: #f8f9fa;
-        }
-        .error-container {
-          max-width: 600px;
-          margin: auto;
-          box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        .error-header {
-          background-color: #dc3545;
-          color: white;
-          padding: 15px;
-          border-radius: 5px 5px 0 0;
-        }
-        .error-body {
-          padding: 20px;
-          background-color: white;
-          border: 1px solid #dc3545;
-          border-top: none;
-          border-radius: 0 0 5px 5px;
-        }
-        .error-footer {
-          margin-top: 20px;
-          text-align: right;
-        }
+        body { font-family: Arial, sans-serif; padding: 20px; background-color: #f8f9fa; }
+        .error-container { max-width: 600px; margin: auto; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+        .error-header { background-color: #dc3545; color: white; padding: 15px; border-radius: 5px 5px 0 0; }
+        .error-body { padding: 20px; background-color: white; border: 1px solid #dc3545; border-top: none; border-radius: 0 0 5px 5px; }
+        .error-footer { margin-top: 20px; text-align: right; }
       </style>
     </head>
     <body>
@@ -84,13 +57,9 @@ function openErrorWindow(message) {
           <button id="close-btn" class="btn btn-danger">Close</button>
         </div>
       </div>
-      
-      <!-- Bootstrap 5 JS (for interactive components) -->
       <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
       <script>
-        document.getElementById('close-btn').addEventListener('click', () => {
-          window.close();
-        });
+        document.getElementById('close-btn').addEventListener('click', () => { window.close(); });
       </script>
     </body>
     </html>
@@ -104,79 +73,58 @@ function openErrorWindow(message) {
  * @returns {string} - The escaped string.
  */
 function escapeHtml(unsafe) {
-  return unsafe
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+  return unsafe.replace(/&/g, "&amp;")
+               .replace(/</g, "&lt;")
+               .replace(/>/g, "&gt;")
+               .replace(/"/g, "&quot;")
+               .replace(/'/g, "&#039;");
 }
 
 /**
- * Show a Bootstrap 5 toast message.
- * Also opens a styled error window if isError is true.
- * @param {string} message - Message to display.
- * @param {boolean} isError - Set to true if an error occurred.
+ * Displays a Bootstrap 5 toast message.
+ * @param {string} message - The message to display.
+ * @param {boolean} isError - If true, shows an error.
  */
 function showToast(message, isError = false) {
   console.log(`[DEBUG] Toast: ${message} (isError=${isError})`);
-
-  // If error, open the error window with our styled output.
   if (isError) {
     openErrorWindow(message);
   }
-  
   const toastContainer = document.getElementById("toastContainer");
   if (!toastContainer) {
     console.error("[DEBUG] toastContainer element not found.");
     return;
   }
-
   const toastEl = document.createElement("div");
-  toastEl.className =
-    "toast align-items-center text-bg-" + (isError ? "danger" : "success");
+  toastEl.className = "toast align-items-center text-bg-" + (isError ? "danger" : "success");
   toastEl.role = "alert";
   toastEl.ariaLive = "assertive";
   toastEl.ariaAtomic = "true";
-
   toastEl.innerHTML = `
     <div class="d-flex">
-      <div class="toast-body">
-        ${message}
-      </div>
-      <button
-        type="button"
-        class="btn-close btn-close-white me-2 m-auto"
-        data-bs-dismiss="toast"
-        aria-label="Close"
-      ></button>
+      <div class="toast-body">${message}</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
     </div>
   `;
-
   toastContainer.appendChild(toastEl);
-
-  // Automatically remove the toast from the DOM after it's hidden
   const bsToast = new bootstrap.Toast(toastEl, { delay: 4000 });
   bsToast.show();
-  bsToast._element.addEventListener("hidden.bs.toast", () => {
-    toastEl.remove();
-  });
+  bsToast._element.addEventListener("hidden.bs.toast", () => { toastEl.remove(); });
 }
 
-// Fetch the list of .o files & loaded eBPF programs
+// --- Program and Form Functions ---
+
 async function fetchPrograms() {
   console.log("[DEBUG] fetchPrograms() called");
   showLoading(true);
   try {
     const res = await fetch("/api/programs");
-    console.log("[DEBUG] fetchPrograms response status:", res.status);
     if (!res.ok) {
       const errorMsg = await res.text();
       showToast(`Failed to fetch programs: ${errorMsg}`, true);
       return;
     }
     const data = await res.json();
-    console.log("[DEBUG] fetchPrograms data:", data);
     updateOFileList(data.programs || []);
     updateLoadedTable(data.loaded || []);
   } catch (err) {
@@ -187,11 +135,9 @@ async function fetchPrograms() {
   }
 }
 
-// Populate the .o file list
 function updateOFileList(programs) {
   const listEl = document.getElementById("o-file-list");
   if (!listEl) return;
-
   listEl.innerHTML = "";
   if (programs.length === 0) {
     const li = document.createElement("li");
@@ -200,31 +146,21 @@ function updateOFileList(programs) {
     listEl.appendChild(li);
     return;
   }
-
-  // Create a list item for each .o file
   programs.forEach((prog) => {
     const li = document.createElement("li");
-    li.className =
-      "list-group-item d-flex justify-content-between align-items-center";
+    li.className = "list-group-item d-flex justify-content-between align-items-center";
     li.textContent = prog;
-    li.style.cursor = "pointer";
-
-    // On click, fill the program input field with the file name
     li.addEventListener("click", () => {
       document.getElementById("programInput").value = prog;
     });
-
     listEl.appendChild(li);
   });
 }
 
-// Populate the loaded eBPF program table with collapsible details
 function updateLoadedTable(loaded) {
   const tbody = document.getElementById("loaded-table-body");
   if (!tbody) return;
-
   tbody.innerHTML = "";
-
   if (loaded.length === 0) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
@@ -234,7 +170,6 @@ function updateLoadedTable(loaded) {
     tbody.appendChild(row);
     return;
   }
-
   loaded.forEach((prog, index) => {
     const row = document.createElement("tr");
     row.innerHTML = `
@@ -248,7 +183,6 @@ function updateLoadedTable(loaded) {
         </button>
       </td>
     `;
-
     const detailsRow = document.createElement("tr");
     detailsRow.innerHTML = `
       <td colspan="5">
@@ -262,12 +196,11 @@ function updateLoadedTable(loaded) {
               </span>
             </li>
             <li class="list-group-item">
-              <strong>Loaded At:</strong> 
-              ${new Date(prog.loaded_at * 1000).toLocaleString()}
+              <strong>Loaded At:</strong> ${new Date(prog.loaded_at * 1000).toLocaleString()}
             </li>
             <li class="list-group-item"><strong>UID:</strong> ${prog.uid}</li>
             <li class="list-group-item">
-              <strong>Orphaned:</strong> 
+              <strong>Orphaned:</strong>
               <span class="badge bg-${prog.orphaned ? "warning" : "secondary"}">
                 ${prog.orphaned ? "Yes" : "No"}
               </span>
@@ -276,7 +209,7 @@ function updateLoadedTable(loaded) {
               <strong>Bytes Translated:</strong> ${prog.bytes_xlated}
             </li>
             <li class="list-group-item">
-              <strong>JITed:</strong> 
+              <strong>JITed:</strong>
               <span class="badge bg-${prog.jited ? "primary" : "secondary"}">
                 ${prog.jited ? "Yes" : "No"}
               </span>
@@ -297,17 +230,14 @@ function updateLoadedTable(loaded) {
         </div>
       </td>
     `;
-
     tbody.appendChild(row);
     tbody.appendChild(detailsRow);
   });
 }
 
-// Single form submission handler
 async function handleFormSubmit(e) {
   e.preventDefault();
   showLoading(true);
-  console.log("[DEBUG] Form submission triggered");
   const action = document.getElementById("action").value;
   const program = document.getElementById("programInput").value.trim();
   const pinPath = document.getElementById("pinPath").value.trim();
@@ -316,26 +246,19 @@ async function handleFormSubmit(e) {
 
   try {
     if (action === "load") {
-      console.log("[DEBUG] Calling doLoad with:", { program, pinPath, typeVal });
       await doLoad(program, pinPath, typeVal);
     } else if (action === "unload") {
-      console.log("[DEBUG] Calling doUnload with:", { program, pinPath });
       await doUnload(program, pinPath);
     } else if (action === "attach") {
-      console.log("[DEBUG] Calling doAttach with:", { pinPath, typeVal, targetVal });
       await doAttach(pinPath, typeVal, targetVal);
     } else if (action === "detach") {
-      console.log("[DEBUG] Calling doDetach with:", { pinPath, typeVal, targetVal });
       await doDetach(pinPath, typeVal, targetVal);
     } else {
       showToast("Unknown action: " + action, true);
-      console.error("[DEBUG] Unknown action:", action);
+      throw new Error("Unknown action");
     }
-
-    // Refresh the .o files and loaded programs
     await fetchPrograms();
   } catch (err) {
-    console.error("[DEBUG] Error in form submission:", err);
     showToast("Error: " + err.message, true);
   } finally {
     showLoading(false);
@@ -343,9 +266,7 @@ async function handleFormSubmit(e) {
 }
 
 // Action Helpers
-
 async function doLoad(program, pinPath, progType) {
-  console.log("[DEBUG] doLoad called with:", { program, pinPath, progType });
   if (!program) {
     showToast("Please select or type a .o file name", true);
     throw new Error("No program specified");
@@ -354,16 +275,14 @@ async function doLoad(program, pinPath, progType) {
   const body = { program };
   if (pinPath) body.pin_path = pinPath;
   if (progType) body.type = progType;
-
-  console.log("[DEBUG] Sending load request body:", body);
   
   const res = await fetch("/api/programs/load", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+  
   const data = await res.json();
-  console.log("[DEBUG] doLoad response:", data);
   if (!res.ok || data.error) {
     showToast(data.error || data.message || "Unknown error", true);
     throw new Error(data.error || data.message || "Load failed");
@@ -372,7 +291,6 @@ async function doLoad(program, pinPath, progType) {
 }
 
 async function doUnload(program, pinPath) {
-  console.log("[DEBUG] doUnload called with:", { program, pinPath });
   const body = {};
   if (pinPath) {
     body.pin_path = pinPath;
@@ -382,16 +300,14 @@ async function doUnload(program, pinPath) {
     showToast("Provide a pinPath or program name to unload", true);
     throw new Error("No unload path or program");
   }
-
-  console.log("[DEBUG] Sending unload request with body:", body);
   
   const res = await fetch("/api/programs/unload", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+  
   const data = await res.json();
-  console.log("[DEBUG] doUnload response:", data);
   if (!res.ok || data.error) {
     showToast(data.error || data.message || "Unknown error", true);
     throw new Error(data.error || data.message || "Unload failed");
@@ -400,53 +316,43 @@ async function doUnload(program, pinPath) {
 }
 
 async function doAttach(pinPath, attachType, target) {
-  console.log("[DEBUG] doAttach called with:", { pinPath, attachType, target });
-  
-  // If no pinPath is provided, attempt to derive one from the program input.
   if (!pinPath) {
     const program = document.getElementById("programInput").value.trim();
     if (program) {
       let defaultPin = program;
       if (defaultPin.endsWith(".bpf.o")) {
-        defaultPin = defaultPin.slice(0, -6); // Remove trailing ".bpf.o"
+        defaultPin = defaultPin.slice(0, -6);
       } else {
         defaultPin = defaultPin.split('.')[0];
       }
       pinPath = "/sys/fs/bpf/" + defaultPin;
-      console.log("[DEBUG] Using fallback pinPath:", pinPath);
     } else {
       showToast("Pin path required for attach", true);
       throw new Error("No pin path");
     }
   }
-
-  // Set default attachType if not provided.
+  
   if (!attachType) {
-    attachType = "xdp"; // Default to xdp if not specified
-    console.log("[DEBUG] Defaulting attachType to 'xdp'");
+    attachType = "xdp";
   }
-
-  // Set default target based on attachType if target is not provided.
+  
   if (!target) {
     if (attachType.toLowerCase() === "xdp") {
       target = "eth0";
-      console.log("[DEBUG] Defaulting target to 'eth0' for xdp");
     } else if (attachType.toLowerCase() === "tracepoint") {
       target = "tracepoint/syscalls/sys_enter_execve";
-      console.log("[DEBUG] Defaulting target to 'tracepoint/syscalls/sys_enter_execve' for tracepoint");
     }
   }
   
   const body = { pin_path: pinPath, attach_type: attachType, target: target };
-  console.log("[DEBUG] Sending attach request with body:", body);
   
   const res = await fetch("/api/programs/attach", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+  
   const data = await res.json();
-  console.log("[DEBUG] doAttach response:", data);
   if (!res.ok || data.error) {
     showToast(data.error || data.message || "Unknown error", true);
     throw new Error(data.error || data.message || "Attach failed");
@@ -455,7 +361,6 @@ async function doAttach(pinPath, attachType, target) {
 }
 
 async function doDetach(pinPath, attachType, target) {
-  console.log("[DEBUG] doDetach called with:", { pinPath, attachType, target });
   if (!pinPath) {
     showToast("Pin path required for detach", true);
     throw new Error("No pin path");
@@ -464,21 +369,172 @@ async function doDetach(pinPath, attachType, target) {
     showToast("attach_type required for detach", true);
     throw new Error("No attach type");
   }
+  
   const body = { pin_path: pinPath, attach_type: attachType };
   if (target) body.target = target;
-  
-  console.log("[DEBUG] Sending detach request with body:", body);
   
   const res = await fetch("/api/programs/detach", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+  
   const data = await res.json();
-  console.log("[DEBUG] doDetach response:", data);
   if (!res.ok || data.error) {
     showToast(data.error || data.message || "Unknown error", true);
     throw new Error(data.error || data.message || "Detach failed");
   }
   showToast(data.message || "Program detached");
 }
+
+// --- Log and Visualization Functions ---
+
+// Fetch collector events and update logs panel
+function fetchCollectorEvents() {
+  fetch('/api/collector_events')
+    .then(response => response.json())
+    .then(data => {
+      const eventsDiv = document.getElementById('collector-events');
+      eventsDiv.innerHTML = '';
+      data.events.slice().reverse().forEach(event => {
+        const eventElem = document.createElement('div');
+        eventElem.className = 'border-bottom py-1';
+        eventElem.style.fontSize = '0.8rem';
+        eventElem.textContent = event;
+        eventsDiv.appendChild(eventElem);
+      });
+      if (logChart) {
+        updateChartData(data.events);
+      }
+    })
+    .catch(err => console.error("Failed to fetch collector events:", err));
+}
+
+let pollingInterval;
+function startPolling() {
+  pollingInterval = setInterval(fetchCollectorEvents, 2000);
+}
+function stopPolling() {
+  clearInterval(pollingInterval);
+}
+
+// Toggle log panel visibility
+document.getElementById('toggleLogsBtn').addEventListener('click', function() {
+  const panel = document.getElementById('collector-panel');
+  const clearBtn = document.getElementById('clearLogsBtn');
+  if (panel.style.display === 'none' || panel.style.display === '') {
+    panel.style.display = 'block';
+    clearBtn.style.display = 'inline-block';
+    this.textContent = 'Hide Logs';
+    startPolling();
+  } else {
+    panel.style.display = 'none';
+    clearBtn.style.display = 'none';
+    this.textContent = 'Show Logs';
+    stopPolling();
+  }
+});
+
+// Clear logs button handler
+document.getElementById('clearLogsBtn').addEventListener('click', function() {
+  fetch('/api/clear_logs', { method: 'POST' })
+    .then(response => response.json())
+    .then(data => {
+      showToast(data.message);
+      document.getElementById('collector-events').innerHTML = '';
+    })
+    .catch(err => console.error("Failed to clear logs:", err));
+});
+
+// Stop Collection button handler
+document.getElementById('stopCollectionBtn').addEventListener('click', async function() {
+  try {
+    const res = await fetch('/api/stop_collection', { method: 'POST' });
+    const data = await res.json();
+    showToast(data.message || data.error, data.error ? true : false);
+    stopPolling();
+    // Optionally, disable the stop button after stopping collection.
+    this.disabled = true;
+  } catch (err) {
+    console.error("Failed to stop collector:", err);
+    showToast("Error stopping collector: " + err.message, true);
+  }
+});
+
+// --- Visualization using Chart.js ---
+let logChart = null;
+function initializeChart() {
+  const ctx = document.getElementById('logChart').getContext('2d');
+  logChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Log Count Over Time',
+        data: [],
+        fill: false,
+        borderColor: 'rgb(75, 192, 192)',
+        tension: 0.1
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        x: { title: { display: true, text: 'Time' } },
+        y: { title: { display: true, text: 'Count' } }
+      }
+    }
+  });
+}
+function updateChartData(events) {
+  const now = new Date().toLocaleTimeString();
+  if (logChart.data.labels.length >= 10) {
+    logChart.data.labels.shift();
+    logChart.data.datasets[0].data.shift();
+  }
+  logChart.data.labels.push(now);
+  logChart.data.datasets[0].data.push(events.length);
+  logChart.update();
+}
+// Toggle visualization panel
+document.getElementById('toggleVizBtn').addEventListener('click', function() {
+  const vizPanel = document.getElementById('visualization-panel');
+  if (vizPanel.style.display === 'none' || vizPanel.style.display === '') {
+    vizPanel.style.display = 'block';
+    this.textContent = 'Hide Visualization';
+    if (!logChart) {
+      initializeChart();
+    }
+  } else {
+    vizPanel.style.display = 'none';
+    this.textContent = 'Visualize Data';
+  }
+});
+
+// --- Fetch Programs on Page Load ---
+async function fetchPrograms() {
+  console.log("[DEBUG] fetchPrograms() called");
+  showLoading(true);
+  try {
+    const res = await fetch("/api/programs");
+    if (!res.ok) {
+      const errorMsg = await res.text();
+      showToast(`Failed to fetch programs: ${errorMsg}`, true);
+      return;
+    }
+    const data = await res.json();
+    updateOFileList(data.programs || []);
+    updateLoadedTable(data.loaded || []);
+  } catch (err) {
+    console.error("[DEBUG] fetchPrograms error:", err);
+    showToast("Error fetching programs: " + err.message, true);
+  } finally {
+    showLoading(false);
+  }
+}
+
+// Initialization: update .o files and loaded programs on DOM load
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("[DEBUG] DOM Content Loaded. Fetching programs...");
+  fetchPrograms();
+});

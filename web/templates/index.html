@@ -6,22 +6,18 @@
   <title>eBPF Program Manager - All-in-One UI</title>
   
   <!-- Bootstrap 5 CSS -->
-  <link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-  />
-  <!-- Custom CSS (if needed) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+  <!-- Custom CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-
+  <!-- Chart.js for visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    /* Ensure the entire viewport is used and hide body scrolling */
+    /* Basic full viewport layout */
     html, body {
       height: 100%;
       margin: 0;
       overflow: hidden;
     }
-
-    /* Fixed navbar and footer heights */
     .navbar {
       height: 60px;
       min-height: 60px;
@@ -31,19 +27,13 @@
       line-height: 50px;
       min-height: 50px;
     }
-
-    /* Main content takes up remaining height */
     .main-content {
-      height: calc(100vh - 110px); /* 100vh - (navbar 60px + footer 50px) */
+      height: calc(100vh - 110px);
       overflow: hidden;
     }
-
-    /* Use flex to make inner content stretch */
     .main-content .row {
       height: 100%;
     }
-
-    /* Reduce vertical spacing within cards for a compact view */
     .card {
       margin-bottom: 0.5rem;
     }
@@ -56,8 +46,6 @@
       padding: 0.5rem 1rem;
       font-size: 0.8rem;
     }
-
-    /* Custom table styling for a compact look */
     .custom-table th,
     .custom-table td {
       padding: 0.4rem;
@@ -67,18 +55,15 @@
     .custom-table tbody tr:hover {
       background-color: #f1f1f1;
     }
-    
-    /* List items for .o Files */
     #o-file-list li {
       padding: 0.3rem 0.75rem;
       border-bottom: 1px solid #e9ecef;
       font-size: 0.8rem;
+      cursor: pointer;
     }
     #o-file-list li:last-child {
       border-bottom: none;
     }
-
-    /* Adjust form elements for a more compact layout */
     .form-label {
       font-size: 0.85rem;
     }
@@ -91,16 +76,14 @@
       padding: 0.375rem 0.75rem;
       font-size: 0.9rem;
     }
-
-    /* Force the two columns to share the available vertical space */
     .left-column, .right-column {
       height: 100%;
       overflow: hidden;
     }
-    /* Optional: Enable inner scrolling if content exceeds available space */
-    /* .left-column > .card-body, .right-column > .card-body {
-      overflow-y: auto;
-    } */
+    /* Initially hide the collector events and visualization panels */
+    #collector-panel, #visualization-panel {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -126,7 +109,6 @@
     <div class="row">
       <!-- Left Column: Available .o Files & Loaded Programs -->
       <aside class="col-lg-4 left-column">
-        <!-- .o Files Card -->
         <div class="card shadow-sm">
           <div class="card-header bg-info text-white">
             <span>Available .o Files (ebpf/src)</span>
@@ -135,8 +117,6 @@
             <ul id="o-file-list" class="list-group list-group-flush"></ul>
           </div>
         </div>
-
-        <!-- Loaded Programs Card -->
         <div class="card shadow-sm">
           <div class="card-header bg-secondary text-white">
             <span>Loaded eBPF Programs</span>
@@ -158,15 +138,14 @@
         </div>
       </aside>
 
-      <!-- Right Column: eBPF Management Form -->
+      <!-- Right Column: Management Form, Logs & Visualization -->
       <section class="col-lg-8 right-column">
-        <div class="card shadow-sm h-100">
+        <div class="card shadow-sm mb-2">
           <div class="card-header bg-dark text-white">
             <span>Manage eBPF</span>
           </div>
           <div class="card-body">
             <form id="ebpf-form" novalidate>
-              <!-- Step 1: Action -->
               <div class="mb-2">
                 <label for="action" class="form-label fw-bold">Action</label>
                 <select id="action" class="form-select">
@@ -176,41 +155,60 @@
                   <option value="unload">Unload</option>
                 </select>
               </div>
-
-              <!-- Step 2: .o File Name -->
               <div class="mb-2">
                 <label for="programInput" class="form-label fw-bold">.o File Name</label>
                 <input type="text" class="form-control" id="programInput" placeholder="myprog.o" />
                 <small class="text-muted">Pick from the left .o list or type your own</small>
               </div>
-
-              <!-- Step 3: Pin Path -->
               <div class="mb-2">
                 <label for="pinPath" class="form-label fw-bold">Pin Path</label>
                 <input type="text" class="form-control" id="pinPath" placeholder="/sys/fs/bpf/myprog" />
                 <small class="text-muted">Optional: defaults to /sys/fs/bpf/&lt;program&gt;</small>
               </div>
-
-              <!-- Step 4: Program Type / Attach Type -->
               <div class="mb-2">
                 <label for="typeInput" class="form-label fw-bold">Type (tracepoint, xdp, etc.)</label>
                 <input type="text" class="form-control" id="typeInput" placeholder="tracepoint" />
-                <small class="text-muted">For load: e.g. "type tracepoint" or "type xdp". For attach: "attach_type"</small>
+                <small class="text-muted">For load: e.g. "tracepoint" or "xdp". For attach: "attach_type"</small>
               </div>
-
-              <!-- Step 5: Target -->
               <div class="mb-2">
                 <label for="targetInput" class="form-label fw-bold">Target (tracepoint path or interface)</label>
                 <input type="text" class="form-control" id="targetInput" placeholder="/sys/kernel/... or eth0" />
                 <small class="text-muted">Default: "sys_enter_execve" or "eth0"</small>
               </div>
-
               <div class="d-grid">
                 <button type="submit" class="btn btn-success btn-lg">
                   <strong>Execute</strong>
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+
+        <!-- Control Buttons for Logs, Stop Collection, and Visualization -->
+        <div class="d-flex mb-2">
+          <button id="toggleLogsBtn" class="btn btn-secondary btn-lg me-2">Show Logs</button>
+          <button id="clearLogsBtn" class="btn btn-danger btn-lg me-2" style="display: none;">Clear Logs</button>
+          <button id="stopCollectionBtn" class="btn btn-warning btn-lg me-2">Stop Collection</button>
+          <button id="toggleVizBtn" class="btn btn-primary btn-lg">Visualize Data</button>
+        </div>
+
+        <!-- Real-Time Collector Events Panel -->
+        <div id="collector-panel" class="card shadow-sm mb-2">
+          <div class="card-header bg-success text-white">
+            <span>Real-Time Collector Events</span>
+          </div>
+          <div class="card-body p-1" id="collector-events" style="max-height: 40%; overflow-y: auto;">
+            <!-- Collector events will be inserted here -->
+          </div>
+        </div>
+
+        <!-- Data Visualization Panel (Chart.js) -->
+        <div id="visualization-panel" class="card shadow-sm">
+          <div class="card-header bg-warning text-dark">
+            <span>Data Visualization</span>
+          </div>
+          <div class="card-body">
+            <canvas id="logChart" width="400" height="200"></canvas>
           </div>
         </div>
       </section>
@@ -226,44 +224,5 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <!-- Custom JS -->
   <script src="{{ url_for('static', filename='main.js') }}"></script>
-
-  <script>
-    // Function to show a success toast message
-    function showSuccessToast(message) {
-      // Create the toast element
-      const toastElem = document.createElement('div');
-      toastElem.className = 'toast align-items-center text-bg-success border-0';
-      toastElem.setAttribute('role', 'alert');
-      toastElem.setAttribute('aria-live', 'assertive');
-      toastElem.setAttribute('aria-atomic', 'true');
-      toastElem.innerHTML = `
-        <div class="d-flex">
-          <div class="toast-body">${message}</div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
-      `;
-      
-      // Append the toast element to the toast container
-      const toastContainer = document.getElementById('toastContainer');
-      toastContainer.appendChild(toastElem);
-      
-      // Initialize and show the toast using Bootstrap's Toast API
-      const toast = new bootstrap.Toast(toastElem, { delay: 3000 });
-      toast.show();
-
-      // Remove the toast element from the DOM once hidden
-      toastElem.addEventListener('hidden.bs.toast', () => {
-        toastElem.remove();
-      });
-    }
-
-    // Example: Show a success toast when the form is submitted
-    document.getElementById('ebpf-form').addEventListener('submit', function(e) {
-      e.preventDefault();
-      // TODO: Your process logic here...
-      // When process passes:
-      showSuccessToast("Process completed successfully!");
-    });
-  </script>
 </body>
 </html>
