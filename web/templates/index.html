@@ -6,14 +6,13 @@
   <title>eBPF Program Manager - All-in-One UI</title>
   
   <!-- Bootstrap 5 CSS -->
-  <link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-  />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
   <!-- Custom CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <!-- Chart.js for visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    /* Ensure the entire viewport is used and hide body scrolling */
+    /* Basic full viewport layout */
     html, body {
       height: 100%;
       margin: 0;
@@ -60,6 +59,7 @@
       padding: 0.3rem 0.75rem;
       border-bottom: 1px solid #e9ecef;
       font-size: 0.8rem;
+      cursor: pointer;
     }
     #o-file-list li:last-child {
       border-bottom: none;
@@ -80,8 +80,8 @@
       height: 100%;
       overflow: hidden;
     }
-    /* Initially hide the collector events panel */
-    #collector-panel {
+    /* Initially hide the collector events and visualization panels */
+    #collector-panel, #visualization-panel {
       display: none;
     }
   </style>
@@ -138,7 +138,7 @@
         </div>
       </aside>
 
-      <!-- Right Column: eBPF Management Form & Real-Time Collector Logs -->
+      <!-- Right Column: Management Form, Logs & Visualization -->
       <section class="col-lg-8 right-column">
         <div class="card shadow-sm mb-2">
           <div class="card-header bg-dark text-white">
@@ -184,18 +184,31 @@
           </div>
         </div>
 
-        <!-- Toggle Button for Collector Logs -->
-        <div class="d-grid mb-2">
-          <button id="toggleLogsBtn" class="btn btn-secondary btn-lg">Show Logs</button>
+        <!-- Control Buttons for Logs, Stop Collection, and Visualization -->
+        <div class="d-flex mb-2">
+          <button id="toggleLogsBtn" class="btn btn-secondary btn-lg me-2">Show Logs</button>
+          <button id="clearLogsBtn" class="btn btn-danger btn-lg me-2" style="display: none;">Clear Logs</button>
+          <button id="stopCollectionBtn" class="btn btn-warning btn-lg me-2">Stop Collection</button>
+          <button id="toggleVizBtn" class="btn btn-primary btn-lg">Visualize Data</button>
         </div>
 
         <!-- Real-Time Collector Events Panel -->
-        <div id="collector-panel" class="card shadow-sm">
+        <div id="collector-panel" class="card shadow-sm mb-2">
           <div class="card-header bg-success text-white">
             <span>Real-Time Collector Events</span>
           </div>
           <div class="card-body p-1" id="collector-events" style="max-height: 40%; overflow-y: auto;">
             <!-- Collector events will be inserted here -->
+          </div>
+        </div>
+
+        <!-- Data Visualization Panel (Chart.js) -->
+        <div id="visualization-panel" class="card shadow-sm">
+          <div class="card-header bg-warning text-dark">
+            <span>Data Visualization</span>
+          </div>
+          <div class="card-body">
+            <canvas id="logChart" width="400" height="200"></canvas>
           </div>
         </div>
       </section>
@@ -211,78 +224,5 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <!-- Custom JS -->
   <script src="{{ url_for('static', filename='main.js') }}"></script>
-
-  <script>
-    // Function to show a success toast message
-    function showSuccessToast(message) {
-      const toastElem = document.createElement('div');
-      toastElem.className = 'toast align-items-center text-bg-success border-0';
-      toastElem.setAttribute('role', 'alert');
-      toastElem.setAttribute('aria-live', 'assertive');
-      toastElem.setAttribute('aria-atomic', 'true');
-      toastElem.innerHTML = `
-        <div class="d-flex">
-          <div class="toast-body">${message}</div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
-      `;
-      const toastContainer = document.getElementById('toastContainer');
-      toastContainer.appendChild(toastElem);
-      const toast = new bootstrap.Toast(toastElem, { delay: 3000 });
-      toast.show();
-      toastElem.addEventListener('hidden.bs.toast', () => {
-        toastElem.remove();
-      });
-    }
-
-    // Handle form submission with AJAX (example)
-    document.getElementById('ebpf-form').addEventListener('submit', function(e) {
-      e.preventDefault();
-      // TODO: Add your process logic here and issue an AJAX call to the proper endpoint.
-      // For example, call the /api/programs/load endpoint.
-      showSuccessToast("Process completed successfully!");
-    });
-
-    // Function to fetch collector events periodically
-    function fetchCollectorEvents() {
-      fetch('/api/collector_events')
-        .then(response => response.json())
-        .then(data => {
-          const eventsDiv = document.getElementById('collector-events');
-          eventsDiv.innerHTML = '';
-          data.events.slice().reverse().forEach(event => {
-            const eventElem = document.createElement('div');
-            eventElem.className = 'border-bottom py-1';
-            eventElem.style.fontSize = '0.8rem';
-            eventElem.textContent = event;
-            eventsDiv.appendChild(eventElem);
-          });
-        })
-        .catch(err => console.error("Failed to fetch collector events:", err));
-    }
-
-    // Polling is active only when logs are visible
-    let pollingInterval;
-    function startPolling() {
-      pollingInterval = setInterval(fetchCollectorEvents, 2000);
-    }
-    function stopPolling() {
-      clearInterval(pollingInterval);
-    }
-
-    // Toggle button to show/hide logs panel
-    document.getElementById('toggleLogsBtn').addEventListener('click', function() {
-      const panel = document.getElementById('collector-panel');
-      if (panel.style.display === 'none' || panel.style.display === '') {
-        panel.style.display = 'block';
-        this.textContent = 'Hide Logs';
-        startPolling();
-      } else {
-        panel.style.display = 'none';
-        this.textContent = 'Show Logs';
-        stopPolling();
-      }
-    });
-  </script>
 </body>
 </html>

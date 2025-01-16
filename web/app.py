@@ -15,9 +15,11 @@ EBPF_SRC_DIR = os.path.abspath("ebpf/src")
 collected_events = []
 events_lock = threading.Lock()
 
-# Global flag to indicate whether the collector has been started
+# Global flag and thread for controlling the collector
 collector_started = False
 collector_thread = None
+collector_proc = None  # Global variable to hold the collector process
+
 
 def make_absolute_pin_path(pin_path):
     """
@@ -28,6 +30,7 @@ def make_absolute_pin_path(pin_path):
         return os.path.join("/sys/fs/bpf", pin_path)
     return pin_path
 
+
 def run_command(cmd):
     """Run a command with sudo and capture output."""
     try:
@@ -36,6 +39,7 @@ def run_command(cmd):
     except subprocess.CalledProcessError as e:
         error_message = e.stderr.strip() if e.stderr else "Unknown error"
         return None, None, error_message
+
 
 def get_loaded_programs():
     """Return loaded eBPF programs with detailed information."""
@@ -50,12 +54,14 @@ def get_loaded_programs():
         app.logger.error(f"[ERROR] JSON decode: {str(e)}")
         return []
 
+
 # REST endpoints for managing eBPF programs
 
 @app.route("/")
 def home():
     """Serve the advanced UI in index.html."""
     return render_template("index.html")
+
 
 @app.route("/api/programs", methods=["GET"])
 def list_programs():
@@ -70,6 +76,7 @@ def list_programs():
     except Exception as e:
         app.logger.error(f"Failed to list programs: {str(e)}")
         return jsonify({"error": "Failed to list programs"}), 500
+
 
 @app.route("/api/programs/load", methods=["POST"])
 def load_program():
@@ -89,14 +96,19 @@ def load_program():
     if error:
         return jsonify({"error": f"Failed to load program: {error}"}), 500
 
-    # If the program was loaded successfully and the collector hasn't been started, start it.
-    global collector_started, collector_thread
+    # Start the collector if it hasn't been started yet
+    global collector_started
     if not collector_started:
         start_collector()
         collector_started = True
         app.logger.info("Collector started after successful load.")
 
+    # Optionally clear any previously collected events to show only new ones.
+    with events_lock:
+        collected_events.clear()
+
     return jsonify({"message": f"Program loaded at {pin_path}"}), 200
+
 
 @app.route("/api/programs/unload", methods=["POST"])
 def unload_program():
@@ -116,6 +128,7 @@ def unload_program():
         return jsonify({"error": f"Failed to unload program: {error}"}), 500
 
     return jsonify({"message": f"Successfully unloaded program at {pin_path}"}), 200
+
 
 @app.route("/api/programs/attach", methods=["POST"])
 def attach_program():
@@ -141,6 +154,7 @@ def attach_program():
         return jsonify({"error": f"Attach failed: {error}"}), 500
 
     return jsonify({"message": f"Attached {pin_path} to {attach_type}:{target}"}), 200
+
 
 @app.route("/api/programs/detach", methods=["POST"])
 def detach_program():
@@ -169,6 +183,7 @@ def detach_program():
 
     return jsonify({"message": f"Detached {pin_path} from {attach_type}:{target}"}), 200
 
+
 # New endpoint to retrieve collected collector events
 @app.route("/api/collector_events", methods=["GET"])
 def get_collector_events():
@@ -177,13 +192,44 @@ def get_collector_events():
         events_copy = collected_events.copy()
     return jsonify({"events": events_copy})
 
+
+# New endpoint to clear collector logs
+@app.route("/api/clear_logs", methods=["POST"])
+def clear_logs():
+    """Clear the collected collector events."""
+    with events_lock:
+        collected_events.clear()
+    return jsonify({"message": "Collector logs cleared"}), 200
+
+
+# New endpoint to stop the collector process
+@app.route("/api/stop_collection", methods=["POST"])
+def stop_collection():
+    """
+    Stop the collector process if it's running.
+    """
+    global collector_proc
+    if collector_proc is not None and collector_proc.poll() is None:
+        try:
+            collector_proc.terminate()  # Request termination
+            collector_proc.wait(timeout=5)  # Wait up to 5 seconds
+            app.logger.info("Collector process terminated successfully.")
+            return jsonify({"message": "Collector process stopped."}), 200
+        except Exception as ex:
+            app.logger.error(f"Failed to stop collector process: {ex}")
+            return jsonify({"error": f"Failed to stop collector process: {ex}"}), 500
+    else:
+        return jsonify({"message": "Collector process is not running."}), 200
+
+
 # --- Collector Integration ---
 def start_collector():
     """
-    Launch the C collector executable ('./exec') as a subprocess
-    in a background thread. Each output line is stored and logged.
+    Launch the C collector executable ('./exec') as a subprocess in a background thread.
+    Each output line is stored and logged.
     """
     def run_collector():
+        global collector_proc
         try:
             proc = subprocess.Popen(
                 ["sudo", "./exec"],
@@ -192,6 +238,7 @@ def start_collector():
                 text=True,
                 bufsize=1
             )
+            collector_proc = proc  # Store the process globally
         except Exception as ex:
             app.logger.error(f"Failed to launch collector: {ex}")
             return
@@ -204,16 +251,21 @@ def start_collector():
                     collected_events.append(line)
                 app.logger.info(f"Collector event: {line}")
             else:
+                # Check if the process has terminated
+                if proc.poll() is not None:
+                    app.logger.info("Collector process terminated.")
+                    break
                 time.sleep(0.1)
+
         proc.stdout.close()
         proc.wait()
+        collector_proc = None  # Clear the global process reference
 
     global collector_thread
     collector_thread = threading.Thread(target=run_collector, daemon=True)
     collector_thread.start()
 
-# Note: We no longer start the collector immediately;
-# it is started when a program is loaded.
+
 if __name__ == "__main__":
     # For production, consider using Gunicorn or another production server.
     app.run(host="127.0.0.1", port=5000, debug=True)
