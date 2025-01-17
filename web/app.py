@@ -4,7 +4,7 @@ import json
 import subprocess
 import threading
 import time
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, Response
 
 app = Flask(__name__, template_folder='templates')
 
@@ -15,7 +15,7 @@ EBPF_SRC_DIR = os.path.abspath("ebpf/src")
 collected_events = []
 events_lock = threading.Lock()
 
-# Global flag and thread for controlling the collector
+# Global flags and variables for controlling the collector
 collector_started = False
 collector_thread = None
 collector_proc = None  # Global variable to hold the collector process
@@ -103,7 +103,7 @@ def load_program():
         collector_started = True
         app.logger.info("Collector started after successful load.")
 
-    # Optionally clear any previously collected events to show only new ones.
+    # Clear any previously collected events to show only new ones.
     with events_lock:
         collected_events.clear()
 
@@ -184,7 +184,10 @@ def detach_program():
     return jsonify({"message": f"Detached {pin_path} from {attach_type}:{target}"}), 200
 
 
-# New endpoint to retrieve collected collector events
+# ------------------------
+# Collector Endpoints
+# ------------------------
+
 @app.route("/api/collector_events", methods=["GET"])
 def get_collector_events():
     """Return real-time events collected by the C collector."""
@@ -193,7 +196,6 @@ def get_collector_events():
     return jsonify({"events": events_copy})
 
 
-# New endpoint to clear collector logs
 @app.route("/api/clear_logs", methods=["POST"])
 def clear_logs():
     """Clear the collected collector events."""
@@ -202,27 +204,59 @@ def clear_logs():
     return jsonify({"message": "Collector logs cleared"}), 200
 
 
-# New endpoint to stop the collector process
+@app.route("/api/dump_logs", methods=["GET"])
+def dump_logs():
+    """
+    Dump all currently collected logs as a downloadable text file.
+    The log entries are joined by newlines.
+    """
+    with events_lock:
+        log_text = "\n".join(collected_events)
+    # Create a response with the logs and set content-disposition for a download
+    response = Response(log_text, mimetype='text/plain')
+    response.headers["Content-Disposition"] = "attachment;filename=collector_logs.txt"
+    return response
+
+
+@app.route("/api/start_collection", methods=["POST"])
+def start_collection_endpoint():
+    """Start the collector process if it is not already running."""
+    global collector_started
+    if collector_started:
+        return jsonify({"message": "Collector process already running."}), 200
+    try:
+        start_collector()
+        collector_started = True
+        app.logger.info("Collector process started via /api/start_collection endpoint.")
+        return jsonify({"message": "Collector process started."}), 200
+    except Exception as ex:
+        app.logger.error(f"Failed to start collector process: {ex}")
+        return jsonify({"error": f"Failed to start collector process: {ex}"}), 500
+
+
 @app.route("/api/stop_collection", methods=["POST"])
 def stop_collection():
-    """
-    Stop the collector process if it's running.
-    """
-    global collector_proc
+    """Stop the collector process if it's running."""
+    global collector_proc, collector_started
     if collector_proc is not None and collector_proc.poll() is None:
         try:
             collector_proc.terminate()  # Request termination
             collector_proc.wait(timeout=5)  # Wait up to 5 seconds
+            collector_started = False
             app.logger.info("Collector process terminated successfully.")
             return jsonify({"message": "Collector process stopped."}), 200
         except Exception as ex:
             app.logger.error(f"Failed to stop collector process: {ex}")
             return jsonify({"error": f"Failed to stop collector process: {ex}"}), 500
     else:
+        collector_started = False
         return jsonify({"message": "Collector process is not running."}), 200
 
 
-# --- Collector Integration ---
+# ------------------------
+# Collector Integration
+# ------------------------
+
 def start_collector():
     """
     Launch the C collector executable ('./exec') as a subprocess in a background thread.

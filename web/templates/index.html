@@ -1,228 +1,213 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>eBPF Program Manager - All-in-One UI</title>
-  
-  <!-- Bootstrap 5 CSS -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
-  <!-- Custom CSS -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <!-- Chart.js for visualization -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    /* Basic full viewport layout */
-    html, body {
-      height: 100%;
-      margin: 0;
-      overflow: hidden;
-    }
-    .navbar {
-      height: 60px;
-      min-height: 60px;
-    }
-    .footer {
-      height: 50px;
-      line-height: 50px;
-      min-height: 50px;
-    }
-    .main-content {
-      height: calc(100vh - 110px);
-      overflow: hidden;
-    }
-    .main-content .row {
-      height: 100%;
-    }
-    .card {
-      margin-bottom: 0.5rem;
-    }
-    .card-header {
-      font-weight: 600;
-      padding: 0.5rem 1rem;
-      font-size: 0.9rem;
-    }
-    .card-body {
-      padding: 0.5rem 1rem;
-      font-size: 0.8rem;
-    }
-    .custom-table th,
-    .custom-table td {
-      padding: 0.4rem;
-      vertical-align: middle;
-      font-size: 0.8rem;
-    }
-    .custom-table tbody tr:hover {
-      background-color: #f1f1f1;
-    }
-    #o-file-list li {
-      padding: 0.3rem 0.75rem;
-      border-bottom: 1px solid #e9ecef;
-      font-size: 0.8rem;
-      cursor: pointer;
-    }
-    #o-file-list li:last-child {
-      border-bottom: none;
-    }
-    .form-label {
-      font-size: 0.85rem;
-    }
-    .form-control,
-    .form-select {
-      font-size: 0.8rem;
-      padding: 0.375rem 0.5rem;
-    }
-    .btn-lg {
-      padding: 0.375rem 0.75rem;
-      font-size: 0.9rem;
-    }
-    .left-column, .right-column {
-      height: 100%;
-      overflow: hidden;
-    }
-    /* Initially hide the collector events and visualization panels */
-    #collector-panel, #visualization-panel {
-      display: none;
-    }
-  </style>
-</head>
-<body>
-  <!-- Fixed Navbar -->
-  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-    <div class="container-fluid">
-      <a class="navbar-brand" href="#">eBPF Program Manager</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
-              data-bs-target="#navbarNav" aria-controls="navbarNav"
-              aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-      </button>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>eBPF Program Manager - All-in-One UI</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    />
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <!-- Chart.js for visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <!-- Fixed Navbar -->
+    <header>
+      <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+          <a class="navbar-brand" href="#">eBPF Program Manager</a>
+          <button
+            class="navbar-toggler"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#navbarNav"
+            aria-controls="navbarNav"
+            aria-expanded="false"
+            aria-label="Toggle navigation"
+          >
+            <span class="navbar-toggler-icon"></span>
+          </button>
+        </div>
+      </nav>
+    </header>
+
+    <!-- Toast Container -->
+    <div
+      class="position-fixed top-0 end-0 p-3"
+      style="z-index: 1055;"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <div id="toastContainer"></div>
     </div>
-  </nav>
 
-  <!-- Toast Container -->
-  <div class="position-fixed top-0 end-0 p-3" style="z-index: 1055;" aria-live="polite" aria-atomic="true">
-    <div id="toastContainer"></div>
-  </div>
+    <!-- Main Content Area -->
+    <main class="container-fluid main-content">
+      <div class="row h-100">
+        <!-- Left Column: Available .o Files & Loaded Programs -->
+        <aside class="col-lg-4 left-column">
+          <div class="card shadow-sm mb-2">
+            <div class="card-header bg-info text-white">
+              <span>Available .o Files (ebpf/src)</span>
+            </div>
+            <div class="card-body p-1 list-scroll">
+              <ul id="o-file-list" class="list-group list-group-flush"></ul>
+            </div>
+          </div>
+          <div class="card shadow-sm">
+            <div class="card-header bg-secondary text-white">
+              <span>Loaded eBPF Programs</span>
+            </div>
+            <div class="card-body p-1 table-scroll">
+              <table class="table table-sm table-bordered custom-table mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Pinned</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="loaded-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </aside>
 
-  <!-- Main Content Area -->
-  <div class="main-content container-fluid">
-    <div class="row">
-      <!-- Left Column: Available .o Files & Loaded Programs -->
-      <aside class="col-lg-4 left-column">
-        <div class="card shadow-sm">
-          <div class="card-header bg-info text-white">
-            <span>Available .o Files (ebpf/src)</span>
+        <!-- Right Column: Management Form, Controls, Logs & Visualization -->
+        <section class="col-lg-8 right-column">
+          <div class="card shadow-sm mb-2">
+            <div class="card-header bg-dark text-white">
+              <span>Manage eBPF</span>
+            </div>
+            <div class="card-body">
+              <form id="ebpf-form" novalidate>
+                <div class="mb-2">
+                  <label for="action" class="form-label fw-bold">Action</label>
+                  <select id="action" class="form-select">
+                    <option value="load">Load</option>
+                    <option value="attach">Attach</option>
+                    <option value="detach">Detach</option>
+                    <option value="unload">Unload</option>
+                  </select>
+                </div>
+                <div class="mb-2">
+                  <label for="programInput" class="form-label fw-bold">.o File Name</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="programInput"
+                    placeholder="myprog.o"
+                  />
+                  <small class="text-muted"
+                    >Pick from the left .o list or type your own</small
+                  >
+                </div>
+                <div class="mb-2">
+                  <label for="pinPath" class="form-label fw-bold">Pin Path</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="pinPath"
+                    placeholder="/sys/fs/bpf/myprog"
+                  />
+                  <small class="text-muted"
+                    >Optional: defaults to /sys/fs/bpf/&lt;program&gt;</small
+                  >
+                </div>
+                <div class="mb-2">
+                  <label for="typeInput" class="form-label fw-bold">
+                    Type (tracepoint, xdp, etc.)
+                  </label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="typeInput"
+                    placeholder="tracepoint"
+                  />
+                  <small class="text-muted"
+                    >For load: e.g. "tracepoint" or "xdp". For attach: "attach_type"</small
+                  >
+                </div>
+                <div class="mb-2">
+                  <label for="targetInput" class="form-label fw-bold">
+                    Target (tracepoint path or interface)
+                  </label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="targetInput"
+                    placeholder="/sys/kernel/... or eth0"
+                  />
+                  <small class="text-muted"
+                    >Default: "sys_enter_execve" or "eth0"</small
+                  >
+                </div>
+                <div class="d-grid">
+                  <button type="submit" class="btn btn-success btn-lg">
+                    <strong>Execute</strong>
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-          <div class="card-body p-1" style="max-height: 40%;">
-            <ul id="o-file-list" class="list-group list-group-flush"></ul>
-          </div>
-        </div>
-        <div class="card shadow-sm">
-          <div class="card-header bg-secondary text-white">
-            <span>Loaded eBPF Programs</span>
-          </div>
-          <div class="card-body p-1" style="max-height: 55%;">
-            <table class="table table-sm table-bordered custom-table mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th>ID</th>
-                  <th>Name</th>
-                  <th>Type</th>
-                  <th>Pinned</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="loaded-table-body"></tbody>
-            </table>
-          </div>
-        </div>
-      </aside>
 
-      <!-- Right Column: Management Form, Logs & Visualization -->
-      <section class="col-lg-8 right-column">
-        <div class="card shadow-sm mb-2">
-          <div class="card-header bg-dark text-white">
-            <span>Manage eBPF</span>
+          <!-- Control Buttons for Collection, Dump Logs, Toggle Logs, and Visualization -->
+          <div class="d-flex mb-2 flex-wrap gap-2">
+            <button id="startCollectionBtn" class="btn btn-secondary btn-lg">
+              Start Collection
+            </button>
+            <button id="stopCollectionBtn" class="btn btn-warning btn-lg" disabled>
+              Stop Collection
+            </button>
+            <button id="dumpLogsBtn" class="btn btn-info btn-lg">
+              Dump Logs
+            </button>
+            <button id="toggleLogsBtn" class="btn btn-dark btn-lg">
+              Show Logs
+            </button>
+            <button id="toggleVizBtn" class="btn btn-primary btn-lg">
+              Visualize Data
+            </button>
           </div>
-          <div class="card-body">
-            <form id="ebpf-form" novalidate>
-              <div class="mb-2">
-                <label for="action" class="form-label fw-bold">Action</label>
-                <select id="action" class="form-select">
-                  <option value="load">Load</option>
-                  <option value="attach">Attach</option>
-                  <option value="detach">Detach</option>
-                  <option value="unload">Unload</option>
-                </select>
-              </div>
-              <div class="mb-2">
-                <label for="programInput" class="form-label fw-bold">.o File Name</label>
-                <input type="text" class="form-control" id="programInput" placeholder="myprog.o" />
-                <small class="text-muted">Pick from the left .o list or type your own</small>
-              </div>
-              <div class="mb-2">
-                <label for="pinPath" class="form-label fw-bold">Pin Path</label>
-                <input type="text" class="form-control" id="pinPath" placeholder="/sys/fs/bpf/myprog" />
-                <small class="text-muted">Optional: defaults to /sys/fs/bpf/&lt;program&gt;</small>
-              </div>
-              <div class="mb-2">
-                <label for="typeInput" class="form-label fw-bold">Type (tracepoint, xdp, etc.)</label>
-                <input type="text" class="form-control" id="typeInput" placeholder="tracepoint" />
-                <small class="text-muted">For load: e.g. "tracepoint" or "xdp". For attach: "attach_type"</small>
-              </div>
-              <div class="mb-2">
-                <label for="targetInput" class="form-label fw-bold">Target (tracepoint path or interface)</label>
-                <input type="text" class="form-control" id="targetInput" placeholder="/sys/kernel/... or eth0" />
-                <small class="text-muted">Default: "sys_enter_execve" or "eth0"</small>
-              </div>
-              <div class="d-grid">
-                <button type="submit" class="btn btn-success btn-lg">
-                  <strong>Execute</strong>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
 
-        <!-- Control Buttons for Logs, Stop Collection, and Visualization -->
-        <div class="d-flex mb-2">
-          <button id="toggleLogsBtn" class="btn btn-secondary btn-lg me-2">Show Logs</button>
-          <button id="clearLogsBtn" class="btn btn-danger btn-lg me-2" style="display: none;">Clear Logs</button>
-          <button id="stopCollectionBtn" class="btn btn-warning btn-lg me-2">Stop Collection</button>
-          <button id="toggleVizBtn" class="btn btn-primary btn-lg">Visualize Data</button>
-        </div>
-
-        <!-- Real-Time Collector Events Panel -->
-        <div id="collector-panel" class="card shadow-sm mb-2">
-          <div class="card-header bg-success text-white">
-            <span>Real-Time Collector Events</span>
+          <!-- Real-Time Collector Events Panel (initially hidden) -->
+          <div id="collector-panel" class="card shadow-sm mb-2" style="display: none;">
+            <div class="card-header bg-success text-white">
+              <span>Real-Time Collector Events</span>
+            </div>
+            <div class="card-body p-1 log-scroll" id="collector-events">
+              <!-- Collector events will be inserted here -->
+            </div>
           </div>
-          <div class="card-body p-1" id="collector-events" style="max-height: 40%; overflow-y: auto;">
-            <!-- Collector events will be inserted here -->
-          </div>
-        </div>
 
-        <!-- Data Visualization Panel (Chart.js) -->
-        <div id="visualization-panel" class="card shadow-sm">
-          <div class="card-header bg-warning text-dark">
-            <span>Data Visualization</span>
+          <!-- Data Visualization Panel (Chart.js) -->
+          <div id="visualization-panel" class="card shadow-sm" style="display: none;">
+            <div class="card-header bg-warning text-dark">
+              <span>Data Visualization</span>
+            </div>
+            <div class="card-body">
+              <canvas id="logChart"></canvas>
+            </div>
           </div>
-          <div class="card-body">
-            <canvas id="logChart" width="400" height="200"></canvas>
-          </div>
-        </div>
-      </section>
-    </div>
-  </div>
+        </section>
+      </div>
+    </main>
 
-  <!-- Fixed Footer -->
-  <footer class="footer bg-primary text-white text-center">
-    <small>&copy; 2025 eBPF Program Manager. All rights reserved.</small>
-  </footer>
+    <!-- Fixed Footer -->
+    <footer class="footer bg-primary text-white text-center">
+      <small>&copy; 2025 eBPF Program Manager. All rights reserved.</small>
+    </footer>
 
-  <!-- Bootstrap Bundle JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <!-- Custom JS -->
-  <script src="{{ url_for('static', filename='main.js') }}"></script>
-</body>
+    <!-- Bootstrap Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
+  </body>
 </html>
