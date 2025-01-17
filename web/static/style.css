@@ -1,0 +1,136 @@
+/* Global Variables for Dark Theme */
+:root {
+  --body-bg: #121212;
+  --toast-success-bg: #2e7d32;
+  --toast-success-text: #e8f5e9;
+  --toast-danger-bg: #c62828;
+  --toast-danger-text: #ffebee;
+  --card-header-bg: #1e1e1e;
+  --card-header-text: #f5f5f5;
+  --card-body-bg: #181818;
+  --card-body-text: #e0e0e0;
+  --btn-bg: #424242;
+  --btn-text: #ffffff;
+  --btn-hover-bg: #616161;
+  --navbar-bg: #000000;
+  --footer-bg: #000000;
+  --border-color: #333;
+  --transition-speed: 0.25s;
+  --navbar-height: 60px;
+  --footer-height: 50px;
+}
+
+/* Force dark background on all primary elements */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: var(--body-bg) !important;
+  color: var(--card-body-text) !important;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+/* Containers */
+.container, .container-fluid, .main-content {
+  background-color: var(--body-bg) !important;
+  color: var(--card-body-text) !important;
+}
+
+/* Navbar & Footer */
+.navbar, .footer {
+  background-color: var(--navbar-bg) !important;
+  color: var(--card-body-text) !important;
+  border: none;
+  height: var(--navbar-height);
+  min-height: var(--navbar-height);
+}
+
+/* Main Content Area */
+.main-content {
+  padding: 1rem;
+  background-color: var(--body-bg) !important;
+  height: calc(100vh - var(--navbar-height) - var(--footer-height));
+  overflow: auto;
+}
+
+/* Cards */
+.card {
+  background-color: var(--card-body-bg) !important;
+  color: var(--card-body-text) !important;
+  border: 1px solid var(--border-color) !important;
+  margin-bottom: 1rem;
+}
+
+.card-header {
+  background-color: var(--card-header-bg) !important;
+  color: var(--card-header-text) !important;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.card-body {
+  background-color: var(--card-body-bg) !important;
+  color: var(--card-body-text) !important;
+  padding: 1rem;
+  font-size: 0.9rem;
+}
+
+/* Buttons */
+.btn {
+  background-color: var(--btn-bg) !important;
+  color: var(--btn-text) !important;
+  border: none !important;
+  transition: background-color var(--transition-speed) ease;
+}
+.btn:hover {
+  background-color: var(--btn-hover-bg) !important;
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Scrollable Panels */
+.list-scroll, .table-scroll, .log-scroll {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* Custom Table Styling */
+.custom-table th, .custom-table td {
+  padding: 0.5rem;
+  vertical-align: middle;
+  color: var(--card-body-text) !important;
+}
+.custom-table tbody tr:hover {
+  background-color: var(--btn-hover-bg) !important;
+}
+
+/* List Items */
+#o-file-list li {
+  padding: 0.3rem 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.8rem;
+  transition: background-color var(--transition-speed) ease;
+  color: var(--card-body-text);
+}
+#o-file-list li:hover {
+  background-color: var(--btn-hover-bg) !important;
+  cursor: pointer;
+}
+#o-file-list li.active {
+  background-color: #0d6efd !important;
+  color: #ffffff !important;
+}
+
+/* Userspace Output Panel */
+#userspaceOutput {
+  background-color: var(--card-body-bg) !important;
+  border: 1px solid var(--border-color) !important;
+  padding: 0.5rem;
+  font-family: monospace;
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto;
+}

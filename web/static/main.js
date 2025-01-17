@@ -169,7 +169,7 @@ function updateLoadedTable(loaded) {
 }
 
 /* -------------------------------
-   Form Submission & eBPF Action Handlers
+   Form Submission & eBPF Actions
 ------------------------------- */
 function attachFormEvent() {
   const ebpfForm = document.getElementById("ebpf-form");
@@ -554,13 +554,12 @@ function initializeCollectionButtonHandlers() {
 }
 
 /* -------------------------------
-   Button Handlers for Userspace Program Management
+   Button Handlers for Userspace Management
 ------------------------------- */
 function initializeUserspaceManagementHandlers() {
   const startBtn = document.getElementById("startUserspaceBtn");
   const stopBtn = document.getElementById("stopUserspaceBtn");
   const toggleOutputBtn = document.getElementById("toggleUserspaceOutputBtn");
-  const dumpBtn = document.getElementById("dumpUserspaceOutputBtn");
   const toggleVizBtn = document.getElementById("toggleUserspaceVizBtn");
   const outputPanel = document.getElementById("userspaceOutputPanel");
   const vizPanel = document.getElementById("userspaceVizPanel");
@@ -587,7 +586,7 @@ function initializeUserspaceManagementHandlers() {
       if (!userspaceChart) initializeUserspaceChart();
     } else {
       vizPanel.style.display = "none";
-      toggleVizBtn.textContent = "Visualize Output";
+      toggleVizBtn.textContent = "Visualize";
     }
   });
 
@@ -595,7 +594,7 @@ function initializeUserspaceManagementHandlers() {
 }
 
 /* -------------------------------
-   Other Button Handlers (for eBPF)
+   Other Button Handlers (eBPF)
 ------------------------------- */
 function initializeButtonHandlers() {
   document.getElementById("dumpLogsBtn").addEventListener("click", () => {
@@ -609,7 +608,7 @@ function initializeButtonHandlers() {
       if (!logChart) initializeChart();
     } else {
       vizPanel.style.display = "none";
-      this.textContent = "Visualize Data";
+      this.textContent = "Visualize";
     }
   });
 }
@@ -623,6 +622,6 @@ document.addEventListener("DOMContentLoaded", () => {
   attachFormEvent();
   initializeButtonHandlers();             // For eBPF Dump & Visualization
   initializeCollectionButtonHandlers();   // For eBPF Collection & Logs Toggle
-  initializeUserspaceManagementHandlers();  // For Userspace Program Manager
+  initializeUserspaceManagementHandlers();  // For Userspace Management
   loadUserspacePrograms();                // Populate the userspace selector
 });

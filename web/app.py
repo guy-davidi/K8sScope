@@ -6,12 +6,14 @@ import threading
 import time
 from flask import Flask, request, jsonify, render_template, Response
 
-app = Flask(__name__, template_folder='templates')
+# Since app.py is inside web/, set static_folder to "static" and template_folder to "templates"
+app = Flask(__name__, static_folder="static", template_folder="templates")
 
-# Directory for scanning .o files (adjust as needed)
-EBPF_SRC_DIR = os.path.abspath("ebpf/src")
-# Directory for userspace programs (adjust as needed)
-USERSPACE_DIR = os.path.abspath("userspace")
+# Calculate BASE_DIR as the parent folder of web/
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+# Directories for EBPF and userspace programs (adjust if needed)
+EBPF_SRC_DIR = os.path.join(BASE_DIR, "ebpf", "src")
+USERSPACE_DIR = os.path.join(BASE_DIR, "userspace")
 
 # Global list and lock for storing collector events (for eBPF)
 collected_events = []
@@ -192,7 +194,7 @@ def detach_program():
 
 
 # ------------------------
-# Collector Endpoints (eBPF)
+# Collector Endpoints (for eBPF)
 # ------------------------
 @app.route("/api/collector_events", methods=["GET"])
 def get_collector_events():
@@ -210,7 +212,7 @@ def clear_logs():
 def dump_logs():
     with events_lock:
         log_text = "\n".join(collected_events)
-    response = Response(log_text, mimetype='text/plain')
+    response = Response(log_text, mimetype="text/plain")
     response.headers["Content-Disposition"] = "attachment;filename=collector_logs.txt"
     return response
 
