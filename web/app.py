@@ -192,7 +192,7 @@ def detach_program():
 
 
 # ------------------------
-# Collector Endpoints (for eBPF)
+# Collector Endpoints (eBPF)
 # ------------------------
 @app.route("/api/collector_events", methods=["GET"])
 def get_collector_events():
@@ -280,6 +280,7 @@ def start_collector():
     global collector_thread
     collector_thread = threading.Thread(target=run_collector, daemon=True)
     collector_thread.start()
+
 
 # ------------------------
 # Userspace Program Endpoints

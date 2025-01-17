@@ -1,4 +1,4 @@
-// Global variables for Chart.js instances and polling
+// Global variables for Chart.js and polling intervals
 let logChart = null;
 let pollingInterval = null;
 let userspacePollingInterval = null;
@@ -14,12 +14,11 @@ function showLoading(show) {
 }
 
 function escapeHtml(unsafe) {
-  return unsafe
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+  return unsafe.replace(/&/g, "&amp;")
+               .replace(/</g, "&lt;")
+               .replace(/>/g, "&gt;")
+               .replace(/"/g, "&quot;")
+               .replace(/'/g, "&#039;");
 }
 
 function showToast(message, isError = false) {
@@ -89,17 +88,11 @@ function updateOFileList(programs) {
     li.textContent = prog;
     li.tabIndex = 0;
     li.addEventListener("click", () => {
-      listEl.querySelectorAll(".active").forEach((item) => {
-        item.classList.remove("active");
-      });
+      listEl.querySelectorAll(".active").forEach((item) => item.classList.remove("active"));
       li.classList.add("active");
       document.getElementById("programInput").value = prog;
     });
-    li.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        li.click();
-      }
-    });
+    li.addEventListener("keydown", (event) => { if (event.key === "Enter") li.click(); });
     listEl.appendChild(li);
   });
 }
@@ -138,9 +131,7 @@ function updateLoadedTable(loaded) {
             <li class="list-group-item"><strong>Tag:</strong> ${prog.tag}</li>
             <li class="list-group-item">
               <strong>GPL Compatible:</strong>
-              <span class="badge bg-${prog.gpl_compatible ? "success" : "danger"}">
-                ${prog.gpl_compatible ? "Yes" : "No"}
-              </span>
+              <span class="badge bg-${prog.gpl_compatible ? "success" : "danger"}">${prog.gpl_compatible ? "Yes" : "No"}</span>
             </li>
             <li class="list-group-item">
               <strong>Loaded At:</strong> ${new Date(prog.loaded_at * 1000).toLocaleString()}
@@ -148,18 +139,13 @@ function updateLoadedTable(loaded) {
             <li class="list-group-item"><strong>UID:</strong> ${prog.uid}</li>
             <li class="list-group-item">
               <strong>Orphaned:</strong>
-              <span class="badge bg-${prog.orphaned ? "warning" : "secondary"}">
-                ${prog.orphaned ? "Yes" : "No"}
-              </span>
+              <span class="badge bg-${prog.orphaned ? "warning" : "secondary"}">${prog.orphaned ? "Yes" : "No"}</span>
             </li>
             <li class="list-group-item">
               <strong>Bytes Translated:</strong> ${prog.bytes_xlated}
             </li>
             <li class="list-group-item">
-              <strong>JITed:</strong>
-              <span class="badge bg-${prog.jited ? "primary" : "secondary"}">
-                ${prog.jited ? "Yes" : "No"}
-              </span>
+              <strong>JITed:</strong> <span class="badge bg-${prog.jited ? "primary" : "secondary"}">${prog.jited ? "Yes" : "No"}</span>
             </li>
             <li class="list-group-item">
               <strong>Bytes JITed:</strong> ${prog.bytes_jited}
@@ -183,7 +169,7 @@ function updateLoadedTable(loaded) {
 }
 
 /* -------------------------------
-   Form Submission and Action Handlers
+   Form Submission & eBPF Action Handlers
 ------------------------------- */
 function attachFormEvent() {
   const ebpfForm = document.getElementById("ebpf-form");
@@ -247,11 +233,9 @@ async function doLoad(program, pinPath, progType) {
 
 async function doUnload(program, pinPath) {
   const body = {};
-  if (pinPath) {
-    body.pin_path = pinPath;
-  } else if (program) {
-    body.program = program;
-  } else {
+  if (pinPath) body.pin_path = pinPath;
+  else if (program) body.program = program;
+  else {
     showToast("Provide a pinPath or program name to unload", true);
     throw new Error("No unload path or program");
   }
@@ -273,23 +257,16 @@ async function doAttach(pinPath, attachType, target) {
     const program = document.getElementById("programInput").value.trim();
     if (program) {
       let defaultPin = program;
-      if (defaultPin.endsWith(".bpf.o")) {
-        defaultPin = defaultPin.slice(0, -6);
-      } else {
-        defaultPin = defaultPin.split(".")[0];
-      }
+      if (defaultPin.endsWith(".bpf.o")) defaultPin = defaultPin.slice(0, -6);
+      else defaultPin = defaultPin.split(".")[0];
       pinPath = "/sys/fs/bpf/" + defaultPin;
     } else {
       showToast("Pin path required for attach", true);
       throw new Error("No pin path");
     }
   }
-  if (!attachType) {
-    attachType = "xdp";
-  }
-  if (!target) {
-    target = attachType.toLowerCase() === "xdp" ? "eth0" : "tracepoint/syscalls/sys_enter_execve";
-  }
+  if (!attachType) attachType = "xdp";
+  if (!target) target = attachType.toLowerCase() === "xdp" ? "eth0" : "tracepoint/syscalls/sys_enter_execve";
   const body = { pin_path: pinPath, attach_type: attachType, target: target };
   const res = await fetch("/api/programs/attach", {
     method: "POST",
@@ -357,7 +334,7 @@ function initializeChart() {
       labels: [],
       datasets: [
         {
-          label: "Log Count Over Time",
+          label: "eBPF Log Count Over Time",
           data: [],
           fill: false,
           borderColor: "rgb(75, 192, 192)",
@@ -367,10 +344,7 @@ function initializeChart() {
     },
     options: {
       responsive: true,
-      scales: {
-        x: { title: { display: true, text: "Time" } },
-        y: { title: { display: true, text: "Count" } },
-      },
+      scales: { x: { title: { display: true, text: "Time" } }, y: { title: { display: true, text: "Count" } } },
     },
   });
 }
@@ -392,19 +366,39 @@ function updateChartData(events) {
 function startPolling() {
   if (!pollingInterval) {
     pollingInterval = setInterval(fetchCollectorEvents, 2000);
-    console.log("[DEBUG] Collection polling started.");
+    console.log("[DEBUG] eBPF polling started.");
   }
 }
 
 function stopPolling() {
   clearInterval(pollingInterval);
   pollingInterval = null;
-  console.log("[DEBUG] Collection polling stopped.");
+  console.log("[DEBUG] eBPF polling stopped.");
 }
 
 /* -------------------------------
    Userspace Program Management Functions
 ------------------------------- */
+async function loadUserspacePrograms() {
+  try {
+    const res = await fetch("/api/userspace_programs");
+    if (!res.ok) throw new Error("Failed to load userspace programs");
+    const data = await res.json();
+    console.log("Userspace programs received:", data.programs);
+    const select = document.getElementById("userspaceProgramSelect");
+    select.innerHTML = "";
+    data.programs.forEach((prog) => {
+      const option = document.createElement("option");
+      option.value = prog;
+      option.textContent = prog;
+      select.appendChild(option);
+    });
+  } catch (err) {
+    console.error(err);
+    showToast("Error loading userspace programs: " + err.message, true);
+  }
+}
+
 function startUserspaceProgram() {
   const programSelect = document.getElementById("userspaceProgramSelect");
   const argsInput = document.getElementById("userspaceArgs");
@@ -421,9 +415,8 @@ function startUserspaceProgram() {
   })
     .then((response) => response.json())
     .then((data) => {
-      if (data.error) {
-        showToast(data.error, true);
-      } else {
+      if (data.error) showToast(data.error, true);
+      else {
         showToast(data.message);
         document.getElementById("stopUserspaceBtn").disabled = false;
         document.getElementById("startUserspaceBtn").disabled = true;
@@ -439,9 +432,8 @@ function stopUserspaceProgram() {
   fetch("/api/stop_userspace", { method: "POST" })
     .then((response) => response.json())
     .then((data) => {
-      if (data.error) {
-        showToast(data.error, true);
-      } else {
+      if (data.error) showToast(data.error, true);
+      else {
         showToast(data.message);
         document.getElementById("stopUserspaceBtn").disabled = true;
         document.getElementById("startUserspaceBtn").disabled = false;
@@ -459,7 +451,6 @@ function fetchUserspaceOutput() {
     .then((data) => {
       const outputDiv = document.getElementById("userspaceOutput");
       outputDiv.textContent = data.output.join("\n");
-      // Update the userspace chart with the current line count:
       updateUserspaceChartData(data.output.length);
     })
     .catch((err) => console.error("Failed to fetch userspace output:", err));
@@ -486,7 +477,7 @@ function initializeUserspaceChart() {
       labels: [],
       datasets: [
         {
-          label: "Userspace Output Lines Over Time",
+          label: "Userspace Lines Over Time",
           data: [],
           fill: false,
           borderColor: "rgb(255, 99, 132)",
@@ -496,10 +487,7 @@ function initializeUserspaceChart() {
     },
     options: {
       responsive: true,
-      scales: {
-        x: { title: { display: true, text: "Time" } },
-        y: { title: { display: true, text: "Lines Count" } },
-      },
+      scales: { x: { title: { display: true, text: "Time" } }, y: { title: { display: true, text: "Lines" } } },
     },
   });
 }
@@ -535,7 +523,7 @@ function initializeCollectionButtonHandlers() {
     startPolling();
     startBtn.disabled = true;
     stopBtn.disabled = false;
-    showToast("Collection started");
+    showToast("eBPF Collection started");
   });
 
   stopBtn.addEventListener("click", async function () {
@@ -547,8 +535,8 @@ function initializeCollectionButtonHandlers() {
       stopBtn.disabled = true;
       startBtn.disabled = false;
     } catch (err) {
-      console.error("Failed to stop collector:", err);
-      showToast("Error stopping collector: " + err.message, true);
+      console.error("Failed to stop eBPF collector:", err);
+      showToast("Error stopping eBPF collector: " + err.message, true);
     }
   });
 
@@ -566,7 +554,7 @@ function initializeCollectionButtonHandlers() {
 }
 
 /* -------------------------------
-   Button Handlers for Userspace Program Manager
+   Button Handlers for Userspace Program Management
 ------------------------------- */
 function initializeUserspaceManagementHandlers() {
   const startBtn = document.getElementById("startUserspaceBtn");
@@ -607,13 +595,12 @@ function initializeUserspaceManagementHandlers() {
 }
 
 /* -------------------------------
-   Other Button Handlers
+   Other Button Handlers (for eBPF)
 ------------------------------- */
 function initializeButtonHandlers() {
   document.getElementById("dumpLogsBtn").addEventListener("click", () => {
     window.location.href = "/api/dump_logs";
   });
-
   document.getElementById("toggleVizBtn").addEventListener("click", function () {
     const vizPanel = document.getElementById("visualization-panel");
     if (vizPanel.style.display === "none" || vizPanel.style.display === "") {
@@ -627,28 +614,6 @@ function initializeButtonHandlers() {
   });
 }
 
-async function loadUserspacePrograms() {
-  try {
-    const res = await fetch("/api/userspace_programs");
-    if (!res.ok) {
-      throw new Error("Failed to load userspace programs");
-    }
-    const data = await res.json();
-    console.log("Userspace programs received:", data.programs); // Debug output
-    const select = document.getElementById("userspaceProgramSelect");
-    select.innerHTML = "";
-    data.programs.forEach((prog) => {
-      const option = document.createElement("option");
-      option.value = prog;
-      option.textContent = prog;
-      select.appendChild(option);
-    });
-  } catch (err) {
-    console.error(err);
-    showToast("Error loading userspace programs: " + err.message, true);
-  }
-}
-
 /* -------------------------------
    DOM Initialization
 ------------------------------- */
@@ -656,8 +621,8 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log("[DEBUG] DOM Content Loaded. Fetching programs...");
   fetchPrograms();
   attachFormEvent();
-  initializeButtonHandlers();             // For Dump Logs & Visualization (eBPF)
-  initializeCollectionButtonHandlers();   // For eBPF Collection & Log Toggle
+  initializeButtonHandlers();             // For eBPF Dump & Visualization
+  initializeCollectionButtonHandlers();   // For eBPF Collection & Logs Toggle
   initializeUserspaceManagementHandlers();  // For Userspace Program Manager
-  loadUserspacePrograms();                // Populate the userspace program selector
+  loadUserspacePrograms();                // Populate the userspace selector
 });
