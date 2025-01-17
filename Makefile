@@ -2,6 +2,7 @@ APP=exec
 IMAGE=guydavidi/ebpf-exec
 EBPF_DIR=ebpf/src
 VENV=venv
+USER_SPACE_DIR=userspace
 
 .PHONY: all clean run docker web venv mount_debugfs mount_bpf
 
@@ -14,9 +15,9 @@ $(VENV)/bin/activate:
 
 all: $(APP)
 
-$(APP): skel
+$(USER_SPACE_DIR)/$(APP): skel
 	@echo "Building the executable..."
-	clang -Wall -Wextra $(EBPF_DIR)/exec.c -o $(APP) -lbpf -lelf
+	clang -Wall -Wextra $(EBPF_DIR)/exec.c -o $(USER_SPACE_DIR)/$(APP) -lbpf -lelf
 
 .PHONY: vmlinux
 vmlinux: mount_bpf
@@ -52,11 +53,11 @@ mount_bpf:
 .PHONY: run
 run: mount_debugfs mount_bpf $(APP)
 	@echo "Running the application..."
-	sudo ./$(APP)
+	sudo ./$(USER_SPACE_DIR)/$(APP)
 
 # Build and push the Docker image
 .PHONY: docker
-docker: $(APP)
+docker: $(USER_SPACE_DIR)/$(APP)
 	@echo "Building Docker image..."
 	docker build -t $(IMAGE) .
 	@echo "Pushing Docker image to Docker Hub..."
@@ -64,14 +65,14 @@ docker: $(APP)
 
 # Run the web application inside the virtual environment
 .PHONY: web
-web: $(VENV)/bin/activate bpf mount_debugfs mount_bpf $(APP)
+web: $(VENV)/bin/activate bpf mount_debugfs mount_bpf $(USER_SPACE_DIR)/$(APP)
 	@echo "Starting the web application..."
 	$(VENV)/bin/python3 web/app.py
 
 .PHONY: clean
 clean:
 	@echo "Cleaning up generated files..."
-	rm -rf $(EBPF_DIR)/*.o $(EBPF_DIR)/*.skel.h $(EBPF_DIR)/vmlinux.h $(APP)
+	rm -rf $(EBPF_DIR)/*.o $(EBPF_DIR)/*.skel.h $(EBPF_DIR)/vmlinux.h $(USER_SPACE_DIR)/$(APP)
 	@echo "Removing virtual environment..."
 	rm -rf $(VENV)
 	@echo "Docker image cleanup: use 'docker image rm $(IMAGE)' if needed."

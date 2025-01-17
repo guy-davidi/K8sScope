@@ -1,6 +1,3 @@
-/* style.css */
-
-/* CSS Variables */
 :root {
   --body-bg: #f8f9fa;
   --toast-success-bg: #d4edda;
@@ -60,8 +57,7 @@ header, footer {
   font-size: 0.8rem;
 }
 
-.custom-table th,
-.custom-table td {
+.custom-table th, .custom-table td {
   padding: 0.4rem;
   vertical-align: middle;
   font-size: 0.8rem;
@@ -115,4 +111,14 @@ header, footer {
 button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+#userspaceOutput {
+  background-color: #f1f1f1;
+  border: 1px solid #ccc;
+  padding: 0.5rem;
+  font-family: monospace;
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto;
 }
