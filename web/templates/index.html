@@ -3,69 +3,56 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>eBPF Program Manager - All-in-One UI</title>
-
+    <title>Program Manager - Dark Mode</title>
     <!-- Bootstrap 5 CSS -->
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
-    <!-- Chart.js for visualization -->
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
   <body>
-    <!-- Fixed Navbar -->
-    <header>
-      <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container-fluid">
-          <a class="navbar-brand" href="#">eBPF Program Manager</a>
-          <button
-            class="navbar-toggler"
-            type="button"
-            data-bs-toggle="collapse"
-            data-bs-target="#navbarNav"
-            aria-controls="navbarNav"
-            aria-expanded="false"
-            aria-label="Toggle navigation"
-          >
-            <span class="navbar-toggler-icon"></span>
-          </button>
-        </div>
-      </nav>
-    </header>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-black">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#">Program Manager</a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarSupportedContent"
+          aria-controls="navbarSupportedContent"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+      </div>
+    </nav>
 
     <!-- Toast Container -->
-    <div
-      class="position-fixed top-0 end-0 p-3"
-      style="z-index: 1055;"
-      aria-live="polite"
-      aria-atomic="true"
-    >
+    <div class="position-fixed top-0 end-0 p-3" style="z-index: 1055;" aria-live="polite" aria-atomic="true">
       <div id="toastContainer"></div>
     </div>
 
     <!-- Main Content Area -->
-    <main class="container-fluid main-content">
-      <div class="row h-100">
-        <!-- Left Column: Available .o Files & Loaded Programs -->
-        <aside class="col-lg-4 left-column">
-          <div class="card shadow-sm mb-2">
-            <div class="card-header bg-info text-white">
-              <span>Available .o Files (ebpf/src)</span>
-            </div>
-            <div class="card-body p-1 list-scroll">
+    <div class="container-fluid main-content">
+      <div class="row">
+        <!-- Left Sidebar: eBPF Files and Loaded Programs -->
+        <div class="col-lg-6 mb-3">
+          <!-- Available .o Files Card -->
+          <div class="card shadow-sm mb-3">
+            <div class="card-header">Available .o Files (ebpf/src)</div>
+            <div class="card-body list-scroll">
               <ul id="o-file-list" class="list-group list-group-flush"></ul>
             </div>
           </div>
+          <!-- Loaded eBPF Programs Card -->
           <div class="card shadow-sm">
-            <div class="card-header bg-secondary text-white">
-              <span>Loaded eBPF Programs</span>
-            </div>
-            <div class="card-body p-1 table-scroll">
-              <table class="table table-sm table-bordered custom-table mb-0">
-                <thead class="table-light">
+            <div class="card-header">Loaded eBPF Programs</div>
+            <div class="card-body table-scroll">
+              <table class="table table-dark table-sm table-bordered custom-table mb-0">
+                <thead>
                   <tr>
                     <th>ID</th>
                     <th>Name</th>
@@ -78,131 +65,137 @@
               </table>
             </div>
           </div>
-        </aside>
+        </div>
 
-        <!-- Right Column: Management Form, Controls, Logs & Visualization -->
-        <section class="col-lg-8 right-column">
-          <div class="card shadow-sm mb-2">
-            <div class="card-header bg-dark text-white">
-              <span>Manage eBPF</span>
+        <!-- Right Sidebar: Tab Navigation for eBPF and Userspace -->
+        <div class="col-lg-6 mb-3">
+          <ul class="nav nav-tabs mb-3" id="mainTab" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="ebpf-tab" data-bs-toggle="tab" data-bs-target="#ebpf" type="button" role="tab" aria-controls="ebpf" aria-selected="true">
+                eBPF
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="userspace-tab" data-bs-toggle="tab" data-bs-target="#userspace" type="button" role="tab" aria-controls="userspace" aria-selected="false">
+                Userspace
+              </button>
+            </li>
+          </ul>
+
+          <div class="tab-content" id="mainTabContent">
+            <!-- eBPF Tab Content -->
+            <div class="tab-pane fade show active" id="ebpf" role="tabpanel" aria-labelledby="ebpf-tab">
+              <!-- eBPF Management Form -->
+              <div class="card shadow-sm mb-3">
+                <div class="card-header">Manage eBPF Programs</div>
+                <div class="card-body">
+                  <form id="ebpf-form" novalidate>
+                    <div class="mb-2">
+                      <label for="action" class="form-label fw-bold">Action</label>
+                      <select id="action" class="form-select">
+                        <option value="load">Load</option>
+                        <option value="attach">Attach</option>
+                        <option value="detach">Detach</option>
+                        <option value="unload">Unload</option>
+                      </select>
+                    </div>
+                    <div class="mb-2">
+                      <label for="programInput" class="form-label fw-bold">.o File Name</label>
+                      <input type="text" class="form-control" id="programInput" placeholder="myprog.o" />
+                      <small class="text-muted">Select from the left list or type a name</small>
+                    </div>
+                    <div class="mb-2">
+                      <label for="pinPath" class="form-label fw-bold">Pin Path</label>
+                      <input type="text" class="form-control" id="pinPath" placeholder="/sys/fs/bpf/myprog" />
+                      <small class="text-muted">Optional: defaults to /sys/fs/bpf/&lt;program&gt;</small>
+                    </div>
+                    <div class="mb-2">
+                      <label for="typeInput" class="form-label fw-bold">Type</label>
+                      <input type="text" class="form-control" id="typeInput" placeholder="tracepoint or xdp" />
+                      <small class="text-muted">For load: "tracepoint" or "xdp"</small>
+                    </div>
+                    <div class="mb-2">
+                      <label for="targetInput" class="form-label fw-bold">Target</label>
+                      <input type="text" class="form-control" id="targetInput" placeholder="/sys/kernel/... or eth0" />
+                      <small class="text-muted">Default: "sys_enter_execve" or "eth0"</small>
+                    </div>
+                    <div class="d-grid">
+                      <button type="submit" class="btn btn-success btn-lg">Execute</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+              <!-- eBPF Control Buttons -->
+              <div class="card shadow-sm mb-3">
+                <div class="card-header">eBPF Controls</div>
+                <div class="card-body">
+                  <div class="btn-group d-flex flex-wrap gap-2">
+                    <button id="startCollectionBtn" class="btn btn-secondary btn-lg flex-fill">Start Collection</button>
+                    <button id="stopCollectionBtn" class="btn btn-warning btn-lg flex-fill" disabled>Stop Collection</button>
+                    <button id="dumpLogsBtn" class="btn btn-info btn-lg flex-fill">Dump Logs</button>
+                    <button id="toggleLogsBtn" class="btn btn-dark btn-lg flex-fill">Toggle Logs</button>
+                    <button id="toggleVizBtn" class="btn btn-primary btn-lg flex-fill">Visualize</button>
+                  </div>
+                </div>
+              </div>
+              <!-- eBPF Output Panels -->
+              <div id="collector-panel" class="card shadow-sm mb-3" style="display: none;">
+                <div class="card-header bg-success">Collector Output</div>
+                <div class="card-body log-scroll" id="collector-events"></div>
+              </div>
+              <div id="visualization-panel" class="card shadow-sm mb-3" style="display: none;">
+                <div class="card-header bg-warning">Visualization</div>
+                <div class="card-body">
+                  <canvas id="logChart"></canvas>
+                </div>
+              </div>
             </div>
-            <div class="card-body">
-              <form id="ebpf-form" novalidate>
-                <div class="mb-2">
-                  <label for="action" class="form-label fw-bold">Action</label>
-                  <select id="action" class="form-select">
-                    <option value="load">Load</option>
-                    <option value="attach">Attach</option>
-                    <option value="detach">Detach</option>
-                    <option value="unload">Unload</option>
-                  </select>
+            <!-- Userspace Tab Content -->
+            <div class="tab-pane fade" id="userspace" role="tabpanel" aria-labelledby="userspace-tab">
+              <!-- Userspace Management Form -->
+              <div class="card shadow-sm mb-3">
+                <div class="card-header">Manage Userspace Program</div>
+                <div class="card-body">
+                  <div class="mb-2">
+                    <label for="userspaceProgramSelect" class="form-label fw-bold">Select Program</label>
+                    <select id="userspaceProgramSelect" class="form-select">
+                      <!-- Options loaded via JS -->
+                    </select>
+                  </div>
+                  <div class="mb-2">
+                    <label for="userspaceArgs" class="form-label fw-bold">Arguments (Optional)</label>
+                    <input type="text" class="form-control" id="userspaceArgs" placeholder="--arg value" />
+                  </div>
+                  <div class="btn-group d-flex flex-wrap gap-2 mb-3">
+                    <button id="startUserspaceBtn" class="btn btn-success btn-lg flex-fill">Start</button>
+                    <button id="stopUserspaceBtn" class="btn btn-danger btn-lg flex-fill" disabled>Stop</button>
+                    <button id="toggleUserspaceOutputBtn" class="btn btn-dark btn-lg flex-fill">Toggle Output</button>
+                    <button id="dumpUserspaceOutputBtn" class="btn btn-info btn-lg flex-fill">Dump Output</button>
+                    <button id="toggleUserspaceVizBtn" class="btn btn-primary btn-lg flex-fill">Visualize</button>
+                  </div>
                 </div>
-                <div class="mb-2">
-                  <label for="programInput" class="form-label fw-bold">.o File Name</label>
-                  <input
-                    type="text"
-                    class="form-control"
-                    id="programInput"
-                    placeholder="myprog.o"
-                  />
-                  <small class="text-muted"
-                    >Pick from the left .o list or type your own</small
-                  >
+              </div>
+              <!-- Userspace Output Panel -->
+              <div id="userspaceOutputPanel" class="card shadow-sm mb-3" style="display: none;">
+                <div class="card-header bg-success">Userspace Output</div>
+                <div id="userspaceOutput" class="card-body log-scroll"></div>
+              </div>
+              <!-- Userspace Visualization Panel -->
+              <div id="userspaceVizPanel" class="card shadow-sm mb-3" style="display: none;">
+                <div class="card-header bg-warning">Visualization</div>
+                <div class="card-body">
+                  <canvas id="userspaceChart"></canvas>
                 </div>
-                <div class="mb-2">
-                  <label for="pinPath" class="form-label fw-bold">Pin Path</label>
-                  <input
-                    type="text"
-                    class="form-control"
-                    id="pinPath"
-                    placeholder="/sys/fs/bpf/myprog"
-                  />
-                  <small class="text-muted"
-                    >Optional: defaults to /sys/fs/bpf/&lt;program&gt;</small
-                  >
-                </div>
-                <div class="mb-2">
-                  <label for="typeInput" class="form-label fw-bold">
-                    Type (tracepoint, xdp, etc.)
-                  </label>
-                  <input
-                    type="text"
-                    class="form-control"
-                    id="typeInput"
-                    placeholder="tracepoint"
-                  />
-                  <small class="text-muted"
-                    >For load: e.g. "tracepoint" or "xdp". For attach: "attach_type"</small
-                  >
-                </div>
-                <div class="mb-2">
-                  <label for="targetInput" class="form-label fw-bold">
-                    Target (tracepoint path or interface)
-                  </label>
-                  <input
-                    type="text"
-                    class="form-control"
-                    id="targetInput"
-                    placeholder="/sys/kernel/... or eth0"
-                  />
-                  <small class="text-muted"
-                    >Default: "sys_enter_execve" or "eth0"</small
-                  >
-                </div>
-                <div class="d-grid">
-                  <button type="submit" class="btn btn-success btn-lg">
-                    <strong>Execute</strong>
-                  </button>
-                </div>
-              </form>
+              </div>
             </div>
           </div>
-
-          <!-- Control Buttons for Collection, Dump Logs, Toggle Logs, and Visualization -->
-          <div class="d-flex mb-2 flex-wrap gap-2">
-            <button id="startCollectionBtn" class="btn btn-secondary btn-lg">
-              Start Collection
-            </button>
-            <button id="stopCollectionBtn" class="btn btn-warning btn-lg" disabled>
-              Stop Collection
-            </button>
-            <button id="dumpLogsBtn" class="btn btn-info btn-lg">
-              Dump Logs
-            </button>
-            <button id="toggleLogsBtn" class="btn btn-dark btn-lg">
-              Show Logs
-            </button>
-            <button id="toggleVizBtn" class="btn btn-primary btn-lg">
-              Visualize Data
-            </button>
-          </div>
-
-          <!-- Real-Time Collector Events Panel (initially hidden) -->
-          <div id="collector-panel" class="card shadow-sm mb-2" style="display: none;">
-            <div class="card-header bg-success text-white">
-              <span>Real-Time Collector Events</span>
-            </div>
-            <div class="card-body p-1 log-scroll" id="collector-events">
-              <!-- Collector events will be inserted here -->
-            </div>
-          </div>
-
-          <!-- Data Visualization Panel (Chart.js) -->
-          <div id="visualization-panel" class="card shadow-sm" style="display: none;">
-            <div class="card-header bg-warning text-dark">
-              <span>Data Visualization</span>
-            </div>
-            <div class="card-body">
-              <canvas id="logChart"></canvas>
-            </div>
-          </div>
-        </section>
+        </div>
       </div>
-    </main>
+    </div>
 
-    <!-- Fixed Footer -->
-    <footer class="footer bg-primary text-white text-center">
-      <small>&copy; 2025 eBPF Program Manager. All rights reserved.</small>
+    <!-- Footer -->
+    <footer class="footer bg-black text-light text-center">
+      <small>&copy; 2025 Program Manager. All rights reserved.</small>
     </footer>
 
     <!-- Bootstrap Bundle JS -->
