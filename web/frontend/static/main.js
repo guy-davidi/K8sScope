@@ -321,30 +321,43 @@ function fetchCollectorEvents() {
         eventElem.textContent = event;
         eventsDiv.appendChild(eventElem);
       });
-      if (logChart) updateChartData(data.events);
+      if (logChart) {
+        updateChartData(data.events);
+      }
     })
     .catch((err) => console.error("Failed to fetch collector events:", err));
 }
 
 function initializeChart() {
-  const ctx = document.getElementById("logChart").getContext("2d");
+  const canvas = document.getElementById("logChart");
+  if (!canvas) {
+    console.error("Chart canvas element not found");
+    return;
+  }
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    console.error("Unable to get 2D context for logChart");
+    return;
+  }
   logChart = new Chart(ctx, {
     type: "line",
     data: {
       labels: [],
-      datasets: [
-        {
-          label: "eBPF Log Count Over Time",
-          data: [],
-          fill: false,
-          borderColor: "rgb(75, 192, 192)",
-          tension: 0.1,
-        },
-      ],
+      datasets: [{
+        label: "eBPF Log Count Over Time",
+        data: [],
+        fill: false,
+        borderColor: "rgb(75, 192, 192)",
+        tension: 0.1,
+      }],
     },
     options: {
       responsive: true,
-      scales: { x: { title: { display: true, text: "Time" } }, y: { title: { display: true, text: "Count" } } },
+      maintainAspectRatio: false, // This line is key
+      scales: {
+        x: { title: { display: true, text: "Time" } },
+        y: { title: { display: true, text: "Count" } },
+      },
     },
   });
 }
@@ -356,6 +369,7 @@ function updateChartData(events) {
     logChart.data.datasets[0].data.shift();
   }
   logChart.data.labels.push(now);
+  // For example, using the total event count:
   logChart.data.datasets[0].data.push(events.length);
   logChart.update();
 }
@@ -470,24 +484,35 @@ function stopUserspacePolling() {
 }
 
 function initializeUserspaceChart() {
-  const ctx = document.getElementById("userspaceChart").getContext("2d");
+  const canvas = document.getElementById("userspaceChart");
+  if (!canvas) {
+    console.error("Userspace chart canvas not found");
+    return;
+  }
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    console.error("Unable to get 2D context for userspaceChart");
+    return;
+  }
   userspaceChart = new Chart(ctx, {
     type: "line",
     data: {
       labels: [],
-      datasets: [
-        {
-          label: "Userspace Lines Over Time",
-          data: [],
-          fill: false,
-          borderColor: "rgb(255, 99, 132)",
-          tension: 0.1,
-        },
-      ],
+      datasets: [{
+        label: "Userspace Lines Over Time",
+        data: [],
+        fill: false,
+        borderColor: "rgb(255, 99, 132)",
+        tension: 0.1,
+      }],
     },
     options: {
       responsive: true,
-      scales: { x: { title: { display: true, text: "Time" } }, y: { title: { display: true, text: "Lines" } } },
+      maintainAspectRatio: false, // Make sure the aspect ratio is not maintained automatically
+      scales: {
+        x: { title: { display: true, text: "Time" } },
+        y: { title: { display: true, text: "Lines" } },
+      },
     },
   });
 }
@@ -583,7 +608,9 @@ function initializeUserspaceManagementHandlers() {
     if (vizPanel.style.display === "none" || vizPanel.style.display === "") {
       vizPanel.style.display = "block";
       toggleVizBtn.textContent = "Hide Visualization";
-      if (!userspaceChart) initializeUserspaceChart();
+      if (!userspaceChart) {
+        initializeUserspaceChart();
+      }
     } else {
       vizPanel.style.display = "none";
       toggleVizBtn.textContent = "Visualize";
@@ -605,12 +632,90 @@ function initializeButtonHandlers() {
     if (vizPanel.style.display === "none" || vizPanel.style.display === "") {
       vizPanel.style.display = "block";
       this.textContent = "Hide Visualization";
-      if (!logChart) initializeChart();
+      if (!logChart) {
+        initializeChart();
+      }
     } else {
       vizPanel.style.display = "none";
       this.textContent = "Visualize";
     }
   });
+}
+
+/* -------------------------------
+   Additional: Dark Mode and Settings Handling
+------------------------------- */
+function initializeThemeToggle() {
+  const darkModeToggle = document.getElementById("darkModeToggle");
+  if (darkModeToggle) {
+    // On load, set theme based on localStorage
+    const savedTheme = localStorage.getItem("theme") || "dark";
+    if (savedTheme === "light") {
+      darkModeToggle.checked = false;
+      document.body.classList.add("light-mode");
+    } else {
+      darkModeToggle.checked = true;
+      document.body.classList.remove("light-mode");
+    }
+    darkModeToggle.addEventListener("change", function () {
+      if (this.checked) {
+        document.body.classList.remove("light-mode");
+        localStorage.setItem("theme", "dark");
+      } else {
+        document.body.classList.add("light-mode");
+        localStorage.setItem("theme", "light");
+      }
+      console.log("Theme toggled:", this.checked ? "Dark Mode" : "Light Mode");
+    });
+  }
+}
+
+function initializeSettingsFormHandler() {
+  const settingsForm = document.getElementById("settingsForm");
+  if (settingsForm) {
+    settingsForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+      const theme = document.getElementById("themeSelect").value;
+      const refreshInterval = document.getElementById("refreshInterval").value;
+      const logLevel = document.getElementById("logLevel").value;
+      
+      // Update theme toggle based on selection
+      const darkModeToggle = document.getElementById("darkModeToggle");
+      if (theme === "dark") {
+        darkModeToggle.checked = true;
+        document.body.classList.remove("light-mode");
+        localStorage.setItem("theme", "dark");
+      } else {
+        darkModeToggle.checked = false;
+        document.body.classList.add("light-mode");
+        localStorage.setItem("theme", "light");
+      }
+      
+      // Optionally, update refresh intervals or log levels in your polling functions
+      console.log(`Settings updated: Theme=${theme}, Refresh=${refreshInterval}, Log Level=${logLevel}`);
+
+      // Hide the offcanvas (if using Bootstrap Offcanvas)
+      const offcanvasEl = document.getElementById("settingsOffcanvas");
+      const offcanvasInstance = bootstrap.Offcanvas.getInstance(offcanvasEl);
+      if (offcanvasInstance) offcanvasInstance.hide();
+    });
+  }
+}
+
+/* -------------------------------
+   File Search Handler for .o Files
+------------------------------- */
+function initializeFileSearch() {
+  const searchInput = document.getElementById("fileSearch");
+  if (searchInput) {
+    searchInput.addEventListener("input", (e) => {
+      const query = e.target.value.toLowerCase();
+      const listItems = document.querySelectorAll("#o-file-list li");
+      listItems.forEach((li) => {
+        li.style.display = li.textContent.toLowerCase().includes(query) ? "" : "none";
+      });
+    });
+  }
 }
 
 /* -------------------------------
@@ -620,8 +725,11 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log("[DEBUG] DOM Content Loaded. Fetching programs...");
   fetchPrograms();
   attachFormEvent();
-  initializeButtonHandlers();             // For eBPF Dump & Visualization
-  initializeCollectionButtonHandlers();   // For eBPF Collection & Logs Toggle
-  initializeUserspaceManagementHandlers();  // For Userspace Management
-  loadUserspacePrograms();                // Populate the userspace selector
+  initializeButtonHandlers();              // For eBPF Dump & Visualization
+  initializeCollectionButtonHandlers();    // For eBPF Collection & Logs Toggle
+  initializeUserspaceManagementHandlers();   // For Userspace Management
+  loadUserspacePrograms();                 // Populate the userspace selector
+  initializeThemeToggle();                 // Initialize theme toggle with persistence
+  initializeSettingsFormHandler();         // Initialize settings form handler
+  initializeFileSearch();                  // Initialize file search handler
 });

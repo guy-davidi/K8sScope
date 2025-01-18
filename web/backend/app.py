@@ -202,11 +202,13 @@ def get_collector_events():
         events_copy = collected_events.copy()
     return jsonify({"events": events_copy})
 
+
 @app.route("/api/clear_logs", methods=["POST"])
 def clear_logs():
     with events_lock:
         collected_events.clear()
     return jsonify({"message": "Collector logs cleared"}), 200
+
 
 @app.route("/api/dump_logs", methods=["GET"])
 def dump_logs():
@@ -215,6 +217,7 @@ def dump_logs():
     response = Response(log_text, mimetype="text/plain")
     response.headers["Content-Disposition"] = "attachment;filename=collector_logs.txt"
     return response
+
 
 @app.route("/api/start_collection", methods=["POST"])
 def start_collection_endpoint():
@@ -229,6 +232,7 @@ def start_collection_endpoint():
     except Exception as ex:
         app.logger.error(f"Failed to start collector: {ex}")
         return jsonify({"error": f"Failed to start collector: {ex}"}), 500
+
 
 @app.route("/api/stop_collection", methods=["POST"])
 def stop_collection():
@@ -246,6 +250,7 @@ def stop_collection():
     else:
         collector_started = False
         return jsonify({"message": "Collector process is not running."}), 200
+
 
 def start_collector():
     def run_collector():
@@ -299,6 +304,7 @@ def list_userspace_programs():
     except Exception as ex:
         app.logger.error(f"Failed to list userspace programs: {ex}")
         return jsonify({"error": "Failed to list userspace programs"}), 500
+
 
 @app.route("/api/start_userspace", methods=["POST"])
 def start_userspace():
@@ -354,6 +360,7 @@ def start_userspace():
     userspace_thread.start()
     return jsonify({"message": "Userspace program started."}), 200
 
+
 @app.route("/api/stop_userspace", methods=["POST"])
 def stop_userspace():
     global userspace_proc
@@ -369,12 +376,14 @@ def stop_userspace():
     else:
         return jsonify({"message": "Userspace program is not running."}), 200
 
+
 @app.route("/api/userspace_output", methods=["GET"])
 def get_userspace_output():
     global userspace_output
     with userspace_lock:
         output_copy = userspace_output.copy()
     return jsonify({"output": output_copy})
+
 
 @app.route("/api/dump_userspace_output", methods=["GET"])
 def dump_userspace_output():
@@ -385,5 +394,24 @@ def dump_userspace_output():
     response.headers["Content-Disposition"] = "attachment;filename=userspace_output.txt"
     return response
 
+
+# ------------------------
+# Additional Endpoint: Performance Metrics
+# ------------------------
+@app.route("/api/performance_metrics", methods=["GET"])
+def performance_metrics():
+    try:
+        import psutil
+    except ImportError:
+        return jsonify({"error": "psutil module is not installed."}), 500
+
+    try:
+        cpu_percent = psutil.cpu_percent(interval=0.5)
+        mem = psutil.virtual_memory()
+        memory_percent = mem.percent
+        return jsonify({"cpu": cpu_percent, "memory": memory_percent})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5000, debug=True)

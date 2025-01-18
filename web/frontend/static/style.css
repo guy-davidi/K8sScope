@@ -1,110 +1,135 @@
-/* Global Variables for Dark Theme */
+/* ===================================================
+   Dark Theme (Default)
+=================================================== */
 :root {
+  /* Color Variables */
   --body-bg: #121212;
+  --text-color: #e0e0e0;
+  
   --toast-success-bg: #2e7d32;
   --toast-success-text: #e8f5e9;
   --toast-danger-bg: #c62828;
   --toast-danger-text: #ffebee;
+  
   --card-header-bg: #1e1e1e;
   --card-header-text: #f5f5f5;
   --card-body-bg: #181818;
   --card-body-text: #e0e0e0;
+  
   --btn-bg: #424242;
   --btn-text: #ffffff;
   --btn-hover-bg: #616161;
+  
   --navbar-bg: #000000;
   --footer-bg: #000000;
+  
   --border-color: #333;
+  
+  /* Layout Variables */
   --transition-speed: 0.25s;
   --navbar-height: 60px;
   --footer-height: 50px;
 }
 
-/* Force dark background on all primary elements */
-html, body {
+/* Global Styles */
+html,
+body {
   height: 100%;
   margin: 0;
   padding: 0;
-  background-color: var(--body-bg) !important;
-  color: var(--card-body-text) !important;
+  background-color: var(--body-bg);
+  color: var(--text-color);
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
 }
 
-/* Containers */
-.container, .container-fluid, .main-content {
-  background-color: var(--body-bg) !important;
-  color: var(--card-body-text) !important;
+/* Layout Containers */
+.container,
+.container-fluid,
+.main-content {
+  background-color: var(--body-bg);
+  color: var(--text-color);
 }
 
 /* Navbar & Footer */
-.navbar, .footer {
-  background-color: var(--navbar-bg) !important;
-  color: var(--card-body-text) !important;
+.navbar,
+.footer {
+  background-color: var(--navbar-bg);
+  color: var(--text-color);
   border: none;
   height: var(--navbar-height);
   min-height: var(--navbar-height);
+  transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
 }
 
 /* Main Content Area */
 .main-content {
   padding: 1rem;
-  background-color: var(--body-bg) !important;
   height: calc(100vh - var(--navbar-height) - var(--footer-height));
   overflow: auto;
 }
 
 /* Cards */
 .card {
-  background-color: var(--card-body-bg) !important;
-  color: var(--card-body-text) !important;
-  border: 1px solid var(--border-color) !important;
+  background-color: var(--card-body-bg);
+  color: var(--card-body-text);
+  border: 1px solid var(--border-color);
   margin-bottom: 1rem;
+  transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
 }
 
 .card-header {
-  background-color: var(--card-header-bg) !important;
-  color: var(--card-header-text) !important;
+  background-color: var(--card-header-bg);
+  color: var(--card-header-text);
   padding: 0.75rem 1rem;
   font-weight: 600;
   font-size: 1rem;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .card-body {
-  background-color: var(--card-body-bg) !important;
-  color: var(--card-body-text) !important;
+  background-color: var(--card-body-bg);
+  color: var(--card-body-text);
   padding: 1rem;
   font-size: 0.9rem;
 }
 
 /* Buttons */
 .btn {
-  background-color: var(--btn-bg) !important;
-  color: var(--btn-text) !important;
-  border: none !important;
-  transition: background-color var(--transition-speed) ease;
+  background-color: var(--btn-bg);
+  color: var(--btn-text);
+  border: none;
+  transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
+  cursor: pointer;
 }
+
 .btn:hover {
-  background-color: var(--btn-hover-bg) !important;
+  background-color: var(--btn-hover-bg);
 }
+
 .btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
 /* Scrollable Panels */
-.list-scroll, .table-scroll, .log-scroll {
+.list-scroll,
+.table-scroll,
+.log-scroll {
   max-height: 300px;
   overflow-y: auto;
 }
 
 /* Custom Table Styling */
-.custom-table th, .custom-table td {
+.custom-table th,
+.custom-table td {
   padding: 0.5rem;
   vertical-align: middle;
-  color: var(--card-body-text) !important;
+  color: var(--card-body-text);
 }
+
 .custom-table tbody tr:hover {
-  background-color: var(--btn-hover-bg) !important;
+  background-color: var(--btn-hover-bg);
 }
 
 /* List Items */
@@ -115,22 +140,59 @@ html, body {
   transition: background-color var(--transition-speed) ease;
   color: var(--card-body-text);
 }
+
 #o-file-list li:hover {
-  background-color: var(--btn-hover-bg) !important;
+  background-color: var(--btn-hover-bg);
   cursor: pointer;
 }
+
 #o-file-list li.active {
-  background-color: #0d6efd !important;
-  color: #ffffff !important;
+  background-color: #0d6efd;
+  color: #ffffff;
 }
 
 /* Userspace Output Panel */
 #userspaceOutput {
-  background-color: var(--card-body-bg) !important;
-  border: 1px solid var(--border-color) !important;
+  background-color: var(--card-body-bg);
+  border: 1px solid var(--border-color);
   padding: 0.5rem;
   font-family: monospace;
   white-space: pre-wrap;
   max-height: 200px;
   overflow-y: auto;
 }
+
+/* ===================================================
+   Light Mode Overrides
+   (Activate by adding the 'light-mode' class to <body>)
+=================================================== */
+body.light-mode {
+  --body-bg: #ffffff;
+  --text-color: #333333;
+
+  --card-header-bg: #f5f5f5;
+  --card-header-text: #000000;
+  --card-body-bg: #ffffff;
+  --card-body-text: #333333;
+
+  --btn-bg: #e0e0e0;
+  --btn-text: #000000;
+  --btn-hover-bg: #d0d0d0;
+
+  --navbar-bg: #f0f0f0;
+  --footer-bg: #f0f0f0;
+
+  --border-color: #ccc;
+}
+
+#visualization-panel canvas,
+#userspaceVizPanel canvas {
+  width: 100% !important;
+  height: 300px !important; /* Adjust height as needed */
+}
+
+/* Note:
+   By overriding the CSS custom properties in body.light-mode,
+   all components update automatically. The transition property on
+   html, body and key components ensures a smooth mode toggle.
+*/
