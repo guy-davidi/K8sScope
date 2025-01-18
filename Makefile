@@ -13,7 +13,7 @@ $(VENV)/bin/activate:
 	$(VENV)/bin/pip install --upgrade pip
 	$(VENV)/bin/pip install flask
 
-all: $(APP)
+all: $(USER_SPACE_DIR)/$(APP)
 
 $(USER_SPACE_DIR)/$(APP): skel
 	@echo "Building the executable..."
@@ -51,7 +51,7 @@ mount_bpf:
 	fi
 
 .PHONY: run
-run: mount_debugfs mount_bpf $(APP)
+run: mount_debugfs mount_bpf $(USER_SPACE_DIR)/$(APP)
 	@echo "Running the application..."
 	sudo ./$(USER_SPACE_DIR)/$(APP)
 
