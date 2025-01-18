@@ -7,13 +7,13 @@ import time
 from flask import Flask, request, jsonify, render_template, Response
 
 # Since app.py is inside web/, set static_folder to "static" and template_folder to "templates"
-app = Flask(__name__, static_folder="static", template_folder="templates")
+app = Flask(__name__, static_folder="../frontend/static", template_folder="../frontend/templates")
 
 # Calculate BASE_DIR as the parent folder of web/
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 # Directories for EBPF and userspace programs (adjust if needed)
-EBPF_SRC_DIR = os.path.join(BASE_DIR, "ebpf", "src")
-USERSPACE_DIR = os.path.join(BASE_DIR, "userspace")
+EBPF_SRC_DIR = os.path.join(BASE_DIR, "../ebpf", "src")
+USERSPACE_DIR = os.path.join(BASE_DIR, "../userspace")
 
 # Global list and lock for storing collector events (for eBPF)
 collected_events = []

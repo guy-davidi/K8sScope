@@ -67,7 +67,7 @@ docker: $(USER_SPACE_DIR)/$(APP)
 .PHONY: web
 web: $(VENV)/bin/activate bpf mount_debugfs mount_bpf $(USER_SPACE_DIR)/$(APP)
 	@echo "Starting the web application..."
-	$(VENV)/bin/python3 web/app.py
+	$(VENV)/bin/python3 web/backend/app.py
 
 .PHONY: clean
 clean:
