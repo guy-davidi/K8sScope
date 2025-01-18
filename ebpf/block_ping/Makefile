@@ -59,7 +59,7 @@ mount_bpf:
 .PHONY: run
 run: $(USER_SPACE_DIR)/$(APP)
 	@echo "Running the executable..."
-	sudo $(USER_SPACE_DIR)/$(APP) eth0
+	sudo $(USER_SPACE_DIR)/$(APP) eth0 --skb
 
 .PHONY: clean
 clean:
