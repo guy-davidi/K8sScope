@@ -5,32 +5,58 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Program Manager - Dark Mode</title>
     <!-- Bootstrap 5 CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    />
+    <!-- Bootstrap Icons (optional) -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+    >
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Optionally include Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
   </head>
   <body>
+    <!-- Loading Spinner -->
+    <div class="loading">
+      <i class="bi bi-arrow-repeat me-2"></i> Loading...
+    </div>
+
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-black">
+    <nav class="navbar navbar-expand-lg navbar-dark">
       <div class="container-fluid">
-        <a class="navbar-brand" href="#">Program Manager</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
-          aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+        <a class="navbar-brand d-flex align-items-center" href="#">
+          <i class="bi bi-cpu-fill fs-4 me-2"></i>
+          <span class="fs-5">Program Manager</span>
+        </a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarSupportedContent"
+          aria-controls="navbarSupportedContent"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
           <span class="navbar-toggler-icon"></span>
         </button>
         <div class="d-flex align-items-center">
           <!-- Dark Mode Toggle -->
           <div class="form-check form-switch text-light me-3">
-            <input class="form-check-input" type="checkbox" id="darkModeToggle" checked>
+            <input class="form-check-input" type="checkbox" id="darkModeToggle" checked />
             <label class="form-check-label" for="darkModeToggle">Dark Mode</label>
           </div>
           <!-- Settings Offcanvas Toggle -->
-          <button class="btn btn-outline-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#settingsOffcanvas"
-            aria-controls="settingsOffcanvas">
+          <button
+            class="btn btn-outline-light"
+            type="button"
+            data-bs-toggle="offcanvas"
+            data-bs-target="#settingsOffcanvas"
+            aria-controls="settingsOffcanvas"
+          >
             <i class="bi bi-gear"></i> Settings
           </button>
         </div>
@@ -38,12 +64,22 @@
     </nav>
 
     <!-- Settings Offcanvas -->
-    <div class="offcanvas offcanvas-end bg-dark text-light" tabindex="-1" id="settingsOffcanvas"
-      aria-labelledby="settingsOffcanvasLabel">
+    <div
+      class="offcanvas offcanvas-end"
+      tabindex="-1"
+      id="settingsOffcanvas"
+      aria-labelledby="settingsOffcanvasLabel"
+    >
       <div class="offcanvas-header">
-        <h5 class="offcanvas-title" id="settingsOffcanvasLabel">Settings</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"
-          aria-label="Close"></button>
+        <h5 class="offcanvas-title" id="settingsOffcanvasLabel">
+          <i class="bi bi-gear-fill me-2"></i>Settings
+        </h5>
+        <button
+          type="button"
+          class="btn-close btn-close-white"
+          data-bs-dismiss="offcanvas"
+          aria-label="Close"
+        ></button>
       </div>
       <div class="offcanvas-body">
         <form id="settingsForm">
@@ -56,7 +92,12 @@
           </div>
           <div class="mb-3">
             <label for="refreshInterval" class="form-label">Data Refresh Interval (ms)</label>
-            <input type="number" class="form-control" id="refreshInterval" value="1000">
+            <input
+              type="number"
+              class="form-control"
+              id="refreshInterval"
+              value="1000"
+            />
           </div>
           <div class="mb-3">
             <label for="logLevel" class="form-label">Log Level</label>
@@ -66,13 +107,20 @@
               <option value="error">Error</option>
             </select>
           </div>
-          <button type="submit" class="btn btn-primary">Apply Settings</button>
+          <button type="submit" class="btn btn-primary w-100">
+            Apply Settings
+          </button>
         </form>
       </div>
     </div>
 
     <!-- Toast Container -->
-    <div class="position-fixed top-0 end-0 p-3" style="z-index: 1055;" aria-live="polite" aria-atomic="true">
+    <div
+      class="position-fixed top-0 end-0 p-3"
+      style="z-index: 1055;"
+      aria-live="polite"
+      aria-atomic="true"
+    >
       <div id="toastContainer"></div>
     </div>
 
@@ -83,9 +131,16 @@
         <div class="col-lg-6 mb-3">
           <!-- Available .o Files Card with Search -->
           <div class="card shadow-sm mb-3">
-            <div class="card-header d-flex justify-content-between align-items-center">
-              <span>Available .o Files (ebpf/src)</span>
-              <input type="text" id="fileSearch" class="form-control form-control-sm w-50" placeholder="Search files...">
+            <div
+              class="card-header d-flex justify-content-between align-items-center"
+            >
+              <span>Available .o Files</span>
+              <input
+                type="text"
+                id="fileSearch"
+                class="form-control form-control-sm w-50"
+                placeholder="Search files..."
+              />
             </div>
             <div class="card-body list-scroll">
               <ul id="o-file-list" class="list-group list-group-flush"></ul>
@@ -93,17 +148,28 @@
           </div>
           <!-- Loaded eBPF Programs Card with Progress Bar -->
           <div class="card shadow-sm">
-            <div class="card-header">Loaded eBPF Programs</div>
+            <div class="card-header">
+              <i class="bi bi-collection"></i> Loaded eBPF Programs
+            </div>
             <div class="card-body table-scroll">
               <div class="mb-2">
-                <div class="progress">
-                  <div id="programLoadProgress" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"
-                    style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                <div class="progress" style="height: 20px;">
+                  <div
+                    id="programLoadProgress"
+                    class="progress-bar progress-bar-striped progress-bar-animated"
+                    role="progressbar"
+                    style="width: 0%;"
+                    aria-valuenow="0"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                  >
                     0%
                   </div>
                 </div>
               </div>
-              <table class="table table-dark table-sm table-bordered custom-table mb-0">
+              <table
+                class="table table-dark table-sm table-bordered custom-table mb-0"
+              >
                 <thead>
                   <tr>
                     <th>ID</th>
@@ -123,14 +189,30 @@
         <div class="col-lg-6 mb-3">
           <ul class="nav nav-tabs mb-3" id="mainTab" role="tablist">
             <li class="nav-item" role="presentation">
-              <button class="nav-link active" id="ebpf-tab" data-bs-toggle="tab" data-bs-target="#ebpf" type="button"
-                role="tab" aria-controls="ebpf" aria-selected="true">
+              <button
+                class="nav-link active"
+                id="ebpf-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#ebpf"
+                type="button"
+                role="tab"
+                aria-controls="ebpf"
+                aria-selected="true"
+              >
                 eBPF
               </button>
             </li>
             <li class="nav-item" role="presentation">
-              <button class="nav-link" id="userspace-tab" data-bs-toggle="tab" data-bs-target="#userspace" type="button"
-                role="tab" aria-controls="userspace" aria-selected="false">
+              <button
+                class="nav-link"
+                id="userspace-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#userspace"
+                type="button"
+                role="tab"
+                aria-controls="userspace"
+                aria-selected="false"
+              >
                 Userspace
               </button>
             </li>
@@ -138,17 +220,28 @@
 
           <div class="tab-content" id="mainTabContent">
             <!-- eBPF Tab Content -->
-            <div class="tab-pane fade show active" id="ebpf" role="tabpanel" aria-labelledby="ebpf-tab">
+            <div
+              class="tab-pane fade show active"
+              id="ebpf"
+              role="tabpanel"
+              aria-labelledby="ebpf-tab"
+            >
               <!-- eBPF Management Form -->
               <div class="card shadow-sm mb-3">
-                <div class="card-header">Manage eBPF Programs</div>
+                <div class="card-header">
+                  <i class="bi bi-tools"></i> Manage eBPF Programs
+                </div>
                 <div class="card-body">
                   <form id="ebpf-form" novalidate>
                     <div class="mb-2">
                       <label for="action" class="form-label fw-bold">
                         Action
-                        <i class="bi bi-question-circle" data-bs-toggle="tooltip" data-bs-placement="right"
-                          title="Select the action to perform"></i>
+                        <i
+                          class="bi bi-question-circle"
+                          data-bs-toggle="tooltip"
+                          data-bs-placement="right"
+                          title="Select the action to perform"
+                        ></i>
                       </label>
                       <select id="action" class="form-select">
                         <option value="load">Load</option>
@@ -160,61 +253,137 @@
                     <div class="mb-2">
                       <label for="programInput" class="form-label fw-bold">
                         .o File Name
-                        <i class="bi bi-info-circle" data-bs-toggle="tooltip" data-bs-placement="right"
-                          title="Select from the list or type the filename"></i>
+                        <i
+                          class="bi bi-info-circle"
+                          data-bs-toggle="tooltip"
+                          data-bs-placement="right"
+                          title="Select from the list or type the filename"
+                        ></i>
                       </label>
-                      <input type="text" class="form-control" id="programInput" placeholder="myprog.o">
-                      <small class="text-muted">Select from the left list or type a name</small>
+                      <input
+                        type="text"
+                        class="form-control"
+                        id="programInput"
+                        placeholder="myprog.o"
+                      />
+                      <small class="text-muted"
+                        >Select from the left list or type a name</small
+                      >
                     </div>
                     <div class="mb-2">
                       <label for="pinPath" class="form-label fw-bold">
                         Pin Path
-                        <i class="bi bi-info-circle" data-bs-toggle="tooltip" data-bs-placement="right"
-                          title="Optional: defaults to /sys/fs/bpf/&lt;program&gt;"></i>
+                        <i
+                          class="bi bi-info-circle"
+                          data-bs-toggle="tooltip"
+                          data-bs-placement="right"
+                          title="Optional: defaults to /sys/fs/bpf/<program>"
+                        ></i>
                       </label>
-                      <input type="text" class="form-control" id="pinPath" placeholder="/sys/fs/bpf/myprog">
+                      <input
+                        type="text"
+                        class="form-control"
+                        id="pinPath"
+                        placeholder="/sys/fs/bpf/myprog"
+                      />
                     </div>
                     <div class="mb-2">
                       <label for="typeInput" class="form-label fw-bold">
                         Type
-                        <i class="bi bi-info-circle" data-bs-toggle="tooltip" data-bs-placement="right"
-                          title="For load: 'tracepoint' or 'xdp'"></i>
+                        <i
+                          class="bi bi-info-circle"
+                          data-bs-toggle="tooltip"
+                          data-bs-placement="right"
+                          title="For load: 'tracepoint' or 'xdp'"
+                        ></i>
                       </label>
-                      <input type="text" class="form-control" id="typeInput" placeholder="tracepoint or xdp">
+                      <input
+                        type="text"
+                        class="form-control"
+                        id="typeInput"
+                        placeholder="tracepoint or xdp"
+                      />
                     </div>
                     <div class="mb-2">
                       <label for="targetInput" class="form-label fw-bold">
                         Target
-                        <i class="bi bi-info-circle" data-bs-toggle="tooltip" data-bs-placement="right"
-                          title="Default: 'sys_enter_execve' or network interface"></i>
+                        <i
+                          class="bi bi-info-circle"
+                          data-bs-toggle="tooltip"
+                          data-bs-placement="right"
+                          title="Default: 'sys_enter_execve' or eth0"
+                        ></i>
                       </label>
-                      <input type="text" class="form-control" id="targetInput" placeholder="/sys/kernel/... or eth0">
+                      <input
+                        type="text"
+                        class="form-control"
+                        id="targetInput"
+                        placeholder="/sys/kernel/... or eth0"
+                      />
                     </div>
                     <div class="d-grid">
-                      <button type="submit" class="btn btn-success btn-lg">Execute</button>
+                      <button type="submit" class="btn btn-success btn-lg">
+                        Execute
+                      </button>
                     </div>
                   </form>
                 </div>
               </div>
               <!-- eBPF Control Buttons -->
               <div class="card shadow-sm mb-3">
-                <div class="card-header">eBPF Controls</div>
+                <div class="card-header">
+                  <i class="bi bi-sliders"></i> eBPF Controls
+                </div>
                 <div class="card-body">
                   <div class="btn-group d-flex flex-wrap gap-2">
-                    <button id="startCollectionBtn" class="btn btn-secondary btn-lg flex-fill">Start Collection</button>
-                    <button id="stopCollectionBtn" class="btn btn-warning btn-lg flex-fill" disabled>Stop Collection</button>
-                    <button id="dumpLogsBtn" class="btn btn-info btn-lg flex-fill">Dump Logs</button>
-                    <button id="toggleLogsBtn" class="btn btn-dark btn-lg flex-fill">Toggle Logs</button>
-                    <button id="toggleVizBtn" class="btn btn-primary btn-lg flex-fill">Visualize</button>
+                    <button
+                      id="startCollectionBtn"
+                      class="btn btn-secondary btn-lg flex-fill"
+                    >
+                      Start Collection
+                    </button>
+                    <button
+                      id="stopCollectionBtn"
+                      class="btn btn-warning btn-lg flex-fill"
+                      disabled
+                    >
+                      Stop Collection
+                    </button>
+                    <button
+                      id="dumpLogsBtn"
+                      class="btn btn-info btn-lg flex-fill"
+                    >
+                      Dump Logs
+                    </button>
+                    <button
+                      id="toggleLogsBtn"
+                      class="btn btn-dark btn-lg flex-fill"
+                    >
+                      Toggle Logs
+                    </button>
+                    <button
+                      id="toggleVizBtn"
+                      class="btn btn-primary btn-lg flex-fill"
+                    >
+                      Visualize
+                    </button>
                   </div>
                 </div>
               </div>
               <!-- eBPF Output Panels -->
-              <div id="collector-panel" class="card shadow-sm mb-3" style="display: none;">
+              <div
+                id="collector-panel"
+                class="card shadow-sm mb-3"
+                style="display: none;"
+              >
                 <div class="card-header bg-success">Collector Output</div>
                 <div class="card-body log-scroll" id="collector-events"></div>
               </div>
-              <div id="visualization-panel" class="card shadow-sm mb-3" style="display: none;">
+              <div
+                id="visualization-panel"
+                class="card shadow-sm mb-3"
+                style="display: none;"
+              >
                 <div class="card-header bg-warning">Visualization</div>
                 <div class="card-body">
                   <canvas id="logChart"></canvas>
@@ -222,23 +391,39 @@
               </div>
               <!-- Performance Metrics Card -->
               <div class="card shadow-sm mb-3">
-                <div class="card-header">Performance Metrics</div>
+                <div class="card-header">
+                  <i class="bi bi-speedometer2"></i> Performance Metrics
+                </div>
                 <div class="card-body">
                   <canvas id="performanceChart"></canvas>
                 </div>
               </div>
             </div>
             <!-- Userspace Tab Content -->
-            <div class="tab-pane fade" id="userspace" role="tabpanel" aria-labelledby="userspace-tab">
+            <div
+              class="tab-pane fade"
+              id="userspace"
+              role="tabpanel"
+              aria-labelledby="userspace-tab"
+            >
               <!-- Userspace Management Form -->
               <div class="card shadow-sm mb-3">
-                <div class="card-header">Manage Userspace Program</div>
+                <div class="card-header">
+                  <i class="bi bi-terminal-fill"></i> Manage Userspace Program
+                </div>
                 <div class="card-body">
                   <div class="mb-2">
-                    <label for="userspaceProgramSelect" class="form-label fw-bold">
+                    <label
+                      for="userspaceProgramSelect"
+                      class="form-label fw-bold"
+                    >
                       Select Program
-                      <i class="bi bi-info-circle" data-bs-toggle="tooltip" data-bs-placement="right"
-                        title="Select a userspace program"></i>
+                      <i
+                        class="bi bi-info-circle"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="right"
+                        title="Select a userspace program"
+                      ></i>
                     </label>
                     <select id="userspaceProgramSelect" class="form-select">
                       <!-- Options loaded via JS -->
@@ -247,27 +432,70 @@
                   <div class="mb-2">
                     <label for="userspaceArgs" class="form-label fw-bold">
                       Arguments (Optional)
-                      <i class="bi bi-info-circle" data-bs-toggle="tooltip" data-bs-placement="right"
-                        title="Provide arguments if required"></i>
+                      <i
+                        class="bi bi-info-circle"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="right"
+                        title="Provide arguments if required"
+                      ></i>
                     </label>
-                    <input type="text" class="form-control" id="userspaceArgs" placeholder="--arg value">
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="userspaceArgs"
+                      placeholder="--arg value"
+                    />
                   </div>
                   <div class="btn-group d-flex flex-wrap gap-2 mb-3">
-                    <button id="startUserspaceBtn" class="btn btn-success btn-lg flex-fill">Start</button>
-                    <button id="stopUserspaceBtn" class="btn btn-danger btn-lg flex-fill" disabled>Stop</button>
-                    <button id="toggleUserspaceOutputBtn" class="btn btn-dark btn-lg flex-fill">Toggle Output</button>
-                    <button id="dumpUserspaceOutputBtn" class="btn btn-info btn-lg flex-fill">Dump Output</button>
-                    <button id="toggleUserspaceVizBtn" class="btn btn-primary btn-lg flex-fill">Visualize</button>
+                    <button
+                      id="startUserspaceBtn"
+                      class="btn btn-success btn-lg flex-fill"
+                    >
+                      Start
+                    </button>
+                    <button
+                      id="stopUserspaceBtn"
+                      class="btn btn-danger btn-lg flex-fill"
+                      disabled
+                    >
+                      Stop
+                    </button>
+                    <button
+                      id="toggleUserspaceOutputBtn"
+                      class="btn btn-dark btn-lg flex-fill"
+                    >
+                      Toggle Output
+                    </button>
+                    <button
+                      id="dumpUserspaceOutputBtn"
+                      class="btn btn-info btn-lg flex-fill"
+                    >
+                      Dump Output
+                    </button>
+                    <button
+                      id="toggleUserspaceVizBtn"
+                      class="btn btn-primary btn-lg flex-fill"
+                    >
+                      Visualize
+                    </button>
                   </div>
                 </div>
               </div>
               <!-- Userspace Output Panel -->
-              <div id="userspaceOutputPanel" class="card shadow-sm mb-3" style="display: none;">
+              <div
+                id="userspaceOutputPanel"
+                class="card shadow-sm mb-3"
+                style="display: none;"
+              >
                 <div class="card-header bg-success">Userspace Output</div>
                 <div id="userspaceOutput" class="card-body log-scroll"></div>
               </div>
               <!-- Userspace Visualization Panel -->
-              <div id="userspaceVizPanel" class="card shadow-sm mb-3" style="display: none;">
+              <div
+                id="userspaceVizPanel"
+                class="card shadow-sm mb-3"
+                style="display: none;"
+              >
                 <div class="card-header bg-warning">Visualization</div>
                 <div class="card-body">
                   <canvas id="userspaceChart"></canvas>
@@ -276,25 +504,29 @@
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </div><!-- row -->
+    </div><!-- container-fluid -->
 
     <!-- Footer -->
-    <footer class="footer bg-black text-light text-center py-3 mt-4">
+    <footer class="footer text-light text-center py-3 mt-4">
       <small>&copy; 2025 Program Manager. All rights reserved.</small>
     </footer>
 
     <!-- Bootstrap Bundle JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+    ></script>
     <!-- Custom JS -->
     <script src="{{ url_for('static', filename='main.js') }}"></script>
     <script>
       // Initialize Bootstrap tooltips
-      const tooltipTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-      tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
+      const tooltipTriggerList = Array.from(
+        document.querySelectorAll('[data-bs-toggle="tooltip"]')
+      );
+      tooltipTriggerList.forEach((el) => new bootstrap.Tooltip(el));
 
-      // --- Theme Persistence and Toggle Handling ---
-      document.addEventListener("DOMContentLoaded", function() {
+      // Theme Persistence on Initial Load
+      document.addEventListener("DOMContentLoaded", function () {
         const savedTheme = localStorage.getItem("theme") || "dark";
         const darkModeToggle = document.getElementById("darkModeToggle");
         const themeSelect = document.getElementById("themeSelect");
@@ -311,7 +543,7 @@
       });
 
       // Dark Mode Toggle Handler with persistence
-      document.getElementById('darkModeToggle').addEventListener('change', function() {
+      document.getElementById("darkModeToggle").addEventListener("change", function () {
         if (this.checked) {
           document.body.classList.remove("light-mode");
           localStorage.setItem("theme", "dark");
@@ -319,18 +551,17 @@
           document.body.classList.add("light-mode");
           localStorage.setItem("theme", "light");
         }
-        console.log("Theme toggled:", this.checked ? "Dark Mode" : "Light Mode");
       });
 
       // Settings Form Submission Handler with theme persistence
-      document.getElementById('settingsForm').addEventListener('submit', function(e) {
+      document.getElementById("settingsForm").addEventListener("submit", function (e) {
         e.preventDefault();
-        const theme = document.getElementById('themeSelect').value;
-        const refreshInterval = document.getElementById('refreshInterval').value;
-        const logLevel = document.getElementById('logLevel').value;
-        const darkModeToggle = document.getElementById('darkModeToggle');
+        const theme = document.getElementById("themeSelect").value;
+        const refreshInterval = document.getElementById("refreshInterval").value;
+        const logLevel = document.getElementById("logLevel").value;
+        const darkModeToggle = document.getElementById("darkModeToggle");
 
-        if (theme === 'dark') {
+        if (theme === "dark") {
           darkModeToggle.checked = true;
           document.body.classList.remove("light-mode");
           localStorage.setItem("theme", "dark");
@@ -339,21 +570,15 @@
           document.body.classList.add("light-mode");
           localStorage.setItem("theme", "light");
         }
-        console.log(`Settings updated: Theme=${theme}, Refresh=${refreshInterval}, Log Level=${logLevel}`);
+
+        console.log(
+          `Settings updated: Theme=${theme}, Refresh=${refreshInterval}, Log Level=${logLevel}`
+        );
 
         // Close the offcanvas panel
-        const offcanvasEl = document.getElementById('settingsOffcanvas');
+        const offcanvasEl = document.getElementById("settingsOffcanvas");
         const offcanvasInstance = bootstrap.Offcanvas.getInstance(offcanvasEl);
         if (offcanvasInstance) offcanvasInstance.hide();
-      });
-
-      // Example: Filter available .o files list based on search input
-      document.getElementById('fileSearch').addEventListener('input', function() {
-        const query = this.value.toLowerCase();
-        const files = document.querySelectorAll('#o-file-list li');
-        files.forEach(file => {
-          file.style.display = file.textContent.toLowerCase().includes(query) ? '' : 'none';
-        });
       });
     </script>
   </body>

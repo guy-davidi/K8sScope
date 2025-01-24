@@ -384,6 +384,12 @@ def get_userspace_output():
         output_copy = userspace_output.copy()
     return jsonify({"output": output_copy})
 
+@app.route("/api/userspace_status", methods=["GET"])
+def userspace_status():
+    global userspace_proc
+    # If userspace_proc is not None and hasn't exited (poll() returns None), it's running
+    running = (userspace_proc is not None and userspace_proc.poll() is None)
+    return jsonify({"running": running}), 200
 
 @app.route("/api/dump_userspace_output", methods=["GET"])
 def dump_userspace_output():
