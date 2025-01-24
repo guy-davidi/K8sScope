@@ -1,95 +1,116 @@
-APP=exec
-IMAGE=guydavidi/ebpf-exec
-EBPF_DIR=ebpf/src
-VENV=venv
-USER_SPACE_DIR=userspace
+# =====================================
+# Root Makefile for the entire project
+# =====================================
 
-.PHONY: all clean run docker web venv mount_debugfs mount_bpf
+TOPDIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
-# Create virtual environment and install Flask if not already set up
+# Where we want user-space binaries placed
+USERSPACE_DIR := $(TOPDIR)/userspace
+
+# Virtual environment for Python/Flask
+VENV := $(TOPDIR)/venv
+
+# Subdirectories under "ebpf/" that contain eBPF programs
+EBPF_SUBDIRS = \
+    ebpf/exec_syscall \
+    ebpf/block_ping
+
+APP := exec                # Example main eBPF user-space app if you have one
+IMAGE := guydavidi/ebpf-exec
+
+.PHONY: all subdirs web run docker clean clean-all \
+        mount_debugfs mount_bpf unmount venv
+
+##--------------------------------------
+## "all" builds everything
+##--------------------------------------
+all: subdirs
+
+##--------------------------------------
+## Build all eBPF subdirs
+##--------------------------------------
+subdirs:
+	@echo "[Root] Building all eBPF subdirectories..."
+	@for dir in $(EBPF_SUBDIRS); do \
+	  echo ">>> Entering $$dir"; \
+	  $(MAKE) -C $$dir USERSPACE_DIR=$(USERSPACE_DIR); \
+	  echo "<<< Leaving  $$dir"; \
+	done
+
+##--------------------------------------
+## Virtual environment for Flask
+##--------------------------------------
 $(VENV)/bin/activate:
-	@echo "Setting up virtual environment..."
+	@echo "[Root] Setting up virtual environment in $(VENV)..."
 	python3 -m venv $(VENV)
 	$(VENV)/bin/pip install --upgrade pip
 	$(VENV)/bin/pip install flask
 
-all: $(USER_SPACE_DIR)/$(APP)
+##--------------------------------------
+## 'web' target: mount BPF, build everything, then run Flask
+##--------------------------------------
+web: $(VENV)/bin/activate all mount_debugfs mount_bpf
+	@echo "[Root] Starting Flask web app..."
+	$(VENV)/bin/python3 web/backend/app.py
 
-$(USER_SPACE_DIR)/$(APP): skel
-	@echo "Building the executable..."
-	clang -Wall -Wextra $(EBPF_DIR)/exec.c -o $(USER_SPACE_DIR)/$(APP) -lbpf -lelf
+##--------------------------------------
+## Example 'run' target: run your main eBPF user-space app
+##--------------------------------------
+run: all mount_debugfs mount_bpf
+	@echo "[Root] Running the main eBPF user-space app: $(APP)"
+	sudo $(USERSPACE_DIR)/$(APP)
 
-.PHONY: vmlinux
-vmlinux: mount_bpf
-	@echo "Generating vmlinux.h..."
-	bpftool btf dump file /sys/kernel/btf/vmlinux format c > $(EBPF_DIR)/vmlinux.h
+##--------------------------------------
+## Docker
+##--------------------------------------
+docker: all
+	@echo "[Root] Building Docker image..."
+	docker build -t $(IMAGE) .
+	@echo "[Root] Pushing Docker image..."
+	docker push $(IMAGE)
 
-.PHONY: bpf
-bpf: vmlinux
-	@echo "Compiling eBPF program..."
-	clang -Wall -Wextra -g -O3 -target bpf -D__TARGET_ARCH_x86_64 -c $(EBPF_DIR)/exec.bpf.c -o $(EBPF_DIR)/exec.bpf.o
-
-.PHONY: skel
-skel: bpf
-	@echo "Generating eBPF skeleton..."
-	bpftool gen skeleton $(EBPF_DIR)/exec.bpf.o name exec > $(EBPF_DIR)/exec.skel.h
-
-.PHONY: mount_debugfs
+##--------------------------------------
+## Mount debugfs, BPF filesystem
+##--------------------------------------
 mount_debugfs:
-	@echo "Checking if debugfs is mounted..."
+	@echo "[Root] Checking if debugfs is mounted..."
 	@if ! mountpoint -q /sys/kernel/debug; then \
-		echo "Mounting debugfs..."; \
+		echo "[Root] Mounting debugfs..."; \
 		sudo mount -t debugfs none /sys/kernel/debug; \
 	fi
 
-.PHONY: mount_bpf
 mount_bpf:
-	@echo "Checking if BPF filesystem is mounted..."
+	@echo "[Root] Checking if BPF filesystem is mounted..."
 	@if ! mountpoint -q /sys/fs/bpf; then \
-		echo "Mounting BPF filesystem..."; \
+		echo "[Root] Mounting BPF filesystem..."; \
 		sudo mount -t bpf bpf /sys/fs/bpf; \
 	fi
 
-.PHONY: run
-run: mount_debugfs mount_bpf $(USER_SPACE_DIR)/$(APP)
-	@echo "Running the application..."
-	sudo ./$(USER_SPACE_DIR)/$(APP)
-
-# Build and push the Docker image
-.PHONY: docker
-docker: $(USER_SPACE_DIR)/$(APP)
-	@echo "Building Docker image..."
-	docker build -t $(IMAGE) .
-	@echo "Pushing Docker image to Docker Hub..."
-	docker push $(IMAGE)
-
-# Run the web application inside the virtual environment
-.PHONY: web
-web: $(VENV)/bin/activate bpf mount_debugfs mount_bpf $(USER_SPACE_DIR)/$(APP)
-	@echo "Starting the web application..."
-	$(VENV)/bin/python3 web/backend/app.py
-
-.PHONY: clean
-clean:
-	@echo "Cleaning up generated files..."
-	rm -rf $(EBPF_DIR)/*.o $(EBPF_DIR)/*.skel.h $(EBPF_DIR)/vmlinux.h $(USER_SPACE_DIR)/$(APP)
-	@echo "Removing virtual environment..."
-	rm -rf $(VENV)
-	@echo "Docker image cleanup: use 'docker image rm $(IMAGE)' if needed."
-
-.PHONY: 
 unmount:
-	@echo "Unmounting debugfs and BPF filesystem if mounted..."
+	@echo "[Root] Unmounting debugfs and BPF if mounted..."
 	@if mountpoint -q /sys/kernel/debug; then \
 		echo "Unmounting debugfs..."; \
 		sudo umount /sys/kernel/debug; \
 	fi
 	@if mountpoint -q /sys/fs/bpf; then \
-		echo "Unmounting BPF filesystem..."; \
+		echo "Unmounting /sys/fs/bpf..."; \
 		sudo umount /sys/fs/bpf; \
 	fi
 
-.PHONY: clean-all
+##--------------------------------------
+## Clean
+##--------------------------------------
+clean:
+	@echo "[Root] Cleaning subdirectories..."
+	@for dir in $(EBPF_SUBDIRS); do \
+	  echo ">>> Cleaning in $$dir"; \
+	  $(MAKE) -C $$dir clean USERSPACE_DIR=$(USERSPACE_DIR); \
+	done
+	@echo "[Root] Removing files in userspace/..."
+	rm -f $(USERSPACE_DIR)/*
+	@echo "[Root] Done cleaning. (userspace is empty now)"
+
 clean-all: clean unmount
-	@echo "Removing virtual environment..."
+	@echo "[Root] Removing virtual environment..."
 	rm -rf $(VENV)
+	@echo "[Root] Done clean-all."

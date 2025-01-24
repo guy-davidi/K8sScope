@@ -12,7 +12,7 @@ app = Flask(__name__, static_folder="../frontend/static", template_folder="../fr
 # Calculate BASE_DIR as the parent folder of web/
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 # Directories for EBPF and userspace programs (adjust if needed)
-EBPF_SRC_DIR = os.path.join(BASE_DIR, "../ebpf", "src")
+EBPF_SRC_DIR = os.path.join(BASE_DIR, "../ebpf", "exec_syscall")
 USERSPACE_DIR = os.path.join(BASE_DIR, "../userspace")
 
 # Global list and lock for storing collector events (for eBPF)
