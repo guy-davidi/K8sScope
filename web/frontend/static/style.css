@@ -1,72 +1,83 @@
 /* ===================================================
-   Dark Theme (Default)
+   Dark Theme (Default) - Enhanced
 =================================================== */
 :root {
   /* Color Variables */
-  --body-bg: #121212;
+  --body-bg: linear-gradient(115deg, #0e0e0e, #181818);
   --text-color: #e0e0e0;
-  
+
   --toast-success-bg: #2e7d32;
   --toast-success-text: #e8f5e9;
   --toast-danger-bg: #c62828;
   --toast-danger-text: #ffebee;
-  
+
   --card-header-bg: #1e1e1e;
   --card-header-text: #f5f5f5;
-  --card-body-bg: #181818;
+  --card-body-bg: rgba(24, 24, 24, 0.95);
   --card-body-text: #e0e0e0;
-  
-  --btn-bg: #424242;
+
+  --btn-bg: #414141;
   --btn-text: #ffffff;
   --btn-hover-bg: #616161;
-  
-  --navbar-bg: #000000;
-  --footer-bg: #000000;
-  
-  --border-color: #333;
-  
+
+  --navbar-bg: rgba(0, 0, 0, 0.85);
+  --footer-bg: rgba(0, 0, 0, 0.75);
+
+  --border-color: #444;
+
   /* Layout Variables */
-  --transition-speed: 0.25s;
-  --navbar-height: 60px;
-  --footer-height: 50px;
+  --transition-speed: 0.4s;
 }
 
 /* Global Styles */
 html,
 body {
-  height: 100%;
   margin: 0;
   padding: 0;
-  background-color: var(--body-bg);
+  background: var(--body-bg) no-repeat center center fixed;
+  background-size: cover;
   color: var(--text-color);
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
-}
-
-/* Layout Containers */
-.container,
-.container-fluid,
-.main-content {
-  background-color: var(--body-bg);
-  color: var(--text-color);
-}
-
-/* Navbar & Footer */
-.navbar,
-.footer {
-  background-color: var(--navbar-bg);
-  color: var(--text-color);
-  border: none;
-  height: var(--navbar-height);
-  min-height: var(--navbar-height);
-  transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  transition: background var(--transition-speed) ease, color var(--transition-speed) ease;
 }
 
 /* Main Content Area */
 .main-content {
-  padding: 1rem;
-  height: calc(100vh - var(--navbar-height) - var(--footer-height));
-  overflow: auto;
+  min-height: calc(100vh - 300px); /* account for hero banner + some spacing */
+  backdrop-filter: blur(4px);
+}
+
+/* Hero Banner */
+.hero-banner {
+  position: relative;
+  width: 100%;
+  height: 300px;
+  background: linear-gradient(
+      rgba(0, 0, 0, 0.3),
+      rgba(0, 0, 0, 0.85)
+    ),
+    url('https://images.unsplash.com/photo-1550565090-5f1c6b6a1759?fit=crop&w=1920&q=80');
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-content {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Offcanvas theming (Bootstrap) */
+.offcanvas {
+  background-color: #111 !important;
+  color: #fff !important;
+}
+body.light-mode .offcanvas {
+  background-color: #fff !important;
+  color: #000 !important;
 }
 
 /* Cards */
@@ -74,42 +85,39 @@ body {
   background-color: var(--card-body-bg);
   color: var(--card-body-text);
   border: 1px solid var(--border-color);
-  margin-bottom: 1rem;
-  transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  transition: transform 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
 }
 
 .card-header {
   background-color: var(--card-header-bg);
   color: var(--card-header-text);
-  padding: 0.75rem 1rem;
-  font-weight: 600;
-  font-size: 1rem;
   border-bottom: 1px solid var(--border-color);
-}
-
-.card-body {
-  background-color: var(--card-body-bg);
-  color: var(--card-body-text);
-  padding: 1rem;
-  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 /* Buttons */
 .btn {
-  background-color: var(--btn-bg);
-  color: var(--btn-text);
-  border: none;
+  background-color: var(--btn-bg) !important;
+  color: var(--btn-text) !important;
+  border: none !important;
+  border-radius: 5px !important;
   transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
-  cursor: pointer;
 }
 
 .btn:hover {
-  background-color: var(--btn-hover-bg);
+  background-color: var(--btn-hover-bg) !important;
 }
 
 .btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  opacity: 0.55;
+  cursor: not-allowed !important;
 }
 
 /* Scrollable Panels */
@@ -118,56 +126,77 @@ body {
 .log-scroll {
   max-height: 300px;
   overflow-y: auto;
+  scrollbar-color: #666 #333;
+  scrollbar-width: thin;
 }
 
-/* Custom Table Styling */
-.custom-table th,
-.custom-table td {
-  padding: 0.5rem;
-  vertical-align: middle;
-  color: var(--card-body-text);
-}
-
+/* Table & List Styles */
 .custom-table tbody tr:hover {
   background-color: var(--btn-hover-bg);
 }
 
-/* List Items */
 #o-file-list li {
-  padding: 0.3rem 0.75rem;
+  padding: 0.4rem 0.75rem;
   border-bottom: 1px solid var(--border-color);
-  font-size: 0.8rem;
   transition: background-color var(--transition-speed) ease;
-  color: var(--card-body-text);
+  cursor: pointer;
 }
 
 #o-file-list li:hover {
   background-color: var(--btn-hover-bg);
-  cursor: pointer;
 }
-
 #o-file-list li.active {
   background-color: #0d6efd;
   color: #ffffff;
 }
 
-/* Userspace Output Panel */
 #userspaceOutput {
   background-color: var(--card-body-bg);
-  border: 1px solid var(--border-color);
   padding: 0.5rem;
   font-family: monospace;
-  white-space: pre-wrap;
   max-height: 200px;
   overflow-y: auto;
+  font-size: 0.9rem;
+}
+
+/* Chart Sizing */
+#userspaceChart,
+#logChart,
+#performanceChart {
+  width: 100% !important;
+  height: 300px !important;
+}
+
+/* Loading Spinner */
+.loading {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #ffffff;
+  font-size: 1.2rem;
+  z-index: 2000;
+  background: rgba(0, 0, 0, 0.9);
+  padding: 1.5rem 2rem;
+  border-radius: 8px;
+  display: none;
+}
+
+/* Toasts */
+.text-bg-success {
+  background-color: var(--toast-success-bg) !important;
+  color: var(--toast-success-text) !important;
+}
+.text-bg-danger {
+  background-color: var(--toast-danger-bg) !important;
+  color: var(--toast-danger-text) !important;
 }
 
 /* ===================================================
    Light Mode Overrides
-   (Activate by adding the 'light-mode' class to <body>)
 =================================================== */
 body.light-mode {
-  --body-bg: #ffffff;
+  --body-bg: #f0f0f0;
   --text-color: #333333;
 
   --card-header-bg: #f5f5f5;
@@ -177,22 +206,20 @@ body.light-mode {
 
   --btn-bg: #e0e0e0;
   --btn-text: #000000;
-  --btn-hover-bg: #d0d0d0;
-
-  --navbar-bg: #f0f0f0;
-  --footer-bg: #f0f0f0;
+  --btn-hover-bg: #c9c9c9;
 
   --border-color: #ccc;
 }
 
-#visualization-panel canvas,
-#userspaceVizPanel canvas {
-  width: 100% !important;
-  height: 300px !important; /* Adjust height as needed */
+body.light-mode .hero-banner {
+  background: linear-gradient(
+      rgba(255, 255, 255, 0.5),
+      rgba(245, 245, 245, 0.85)
+    ),
+    url('https://images.unsplash.com/photo-1550565090-5f1c6b6a1759?fit=crop&w=1920&q=80');
 }
 
-/* Note:
-   By overriding the CSS custom properties in body.light-mode,
-   all components update automatically. The transition property on
-   html, body and key components ensures a smooth mode toggle.
-*/
+body.light-mode .card {
+  background-color: #ffffff;
+  color: #333;
+}

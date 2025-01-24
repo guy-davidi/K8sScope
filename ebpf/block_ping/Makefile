@@ -1,70 +1,34 @@
+# ===================================
+# ebpf/block_ping/Makefile
+# ===================================
 APP = xdp_prog
 
-BPF_PROG = $(APP).bpf.c
-BPF_OBJ = $(APP).bpf.o
-BPF_SKEL = $(APP).skel.h
-BPF_VMLINUX = vmlinux.h
-EBPF_DIR = $(shell pwd)
-USER_SPACE_DIR = $(shell pwd)
+# Where to place the final user-space binary
+USERSPACE_DIR ?= userspace
 
 CLANG_FLAGS = -Wall -Wextra -g -O3 -target bpf -D__TARGET_ARCH_x86_64
-GCC_FLAGS = -Wall -Wextra -lbpf -lelf
+LD_FLAGS    = -lbpf -lelf
 
-.PHONY: all clean skel run
+all: $(USERSPACE_DIR)/$(APP)
 
-# Create virtual environment and install Flask if not already set up
-$(VENV)/bin/activate:
-	@echo "Setting up virtual environment..."
-	python3 -m venv $(VENV)
-	$(VENV)/bin/pip install --upgrade pip
-	$(VENV)/bin/pip install flask
+vmlinux.h:
+	@echo "[block_ping] Generating vmlinux.h"
+	bpftool btf dump file /sys/kernel/btf/vmlinux format c > vmlinux.h
 
-all: $(USER_SPACE_DIR)/$(APP)
+$(APP).bpf.o: vmlinux.h $(APP).bpf.c
+	@echo "[block_ping] Compiling $(APP).bpf.c -> $(APP).bpf.o"
+	clang $(CLANG_FLAGS) -c $(APP).bpf.c -o $(APP).bpf.o
 
-$(USER_SPACE_DIR)/$(APP): skel
-	@echo "Building the executable..."
-	clang -Wall -Wextra $(EBPF_DIR)/$(APP).c -o $(USER_SPACE_DIR)/$(APP) -lbpf -lelf
+$(APP).skel.h: $(APP).bpf.o
+	@echo "[block_ping] Generating skeleton $(APP).skel.h"
+	bpftool gen skeleton $(APP).bpf.o name $(APP) > $(APP).skel.h
 
-.PHONY: vmlinux
-vmlinux: mount_bpf
-	@echo "Generating vmlinux.h..."
-	bpftool btf dump file /sys/kernel/btf/vmlinux format c > $(EBPF_DIR)/vmlinux.h
+$(USERSPACE_DIR)/$(APP): $(APP).c $(APP).skel.h
+	@echo "[block_ping] Building user-space $(APP) -> $(USERSPACE_DIR)/$(APP)"
+	mkdir -p $(USERSPACE_DIR)
+	clang -Wall -Wextra $(APP).c -o $(USERSPACE_DIR)/$(APP) $(LD_FLAGS)
 
-.PHONY: bpf
-bpf: vmlinux
-	@echo "Compiling eBPF program..."
-	clang -Wall -Wextra -g -O3 -target bpf -D__TARGET_ARCH_x86_64 -c $(EBPF_DIR)/$(APP).bpf.c -o $(EBPF_DIR)/$(APP).bpf.o
-
-.PHONY: skel
-skel: bpf
-	@echo "Generating eBPF skeleton..."
-	bpftool gen skeleton $(EBPF_DIR)/$(APP).bpf.o name $(APP) > $(EBPF_DIR)/$(APP).skel.h
-
-.PHONY: mount_debugfs
-mount_debugfs:
-	@echo "Checking if debugfs is mounted..."
-	@if ! mountpoint -q /sys/kernel/debug; then \
-		echo "Mounting debugfs..."; \
-		sudo mount -t debugfs none /sys/kernel/debug; \
-	fi
-
-.PHONY: mount_bpf
-mount_bpf:
-	@echo "Checking if BPF filesystem is mounted..."
-	@if ! mountpoint -q /sys/fs/bpf; then \
-		echo "Mounting BPF filesystem..."; \
-		sudo mount -t bpf bpf /sys/fs/bpf; \
-	fi
-
-.PHONY: run
-run: $(USER_SPACE_DIR)/$(APP)
-	@echo "Running the executable..."
-	sudo $(USER_SPACE_DIR)/$(APP) eth0 --skb
-
-.PHONY: clean
 clean:
-	@echo "Cleaning up..."
-	rm -f $(USER_SPACE_DIR)/$(APP)
-	rm -f $(EBPF_DIR)/$(APP).bpf.o
-	rm -f $(EBPF_DIR)/$(APP).skel.h
-	rm -f vmlinux.h
+	@echo "[block_ping] Cleaning up"
+	rm -f $(APP).bpf.o $(APP).skel.h vmlinux.h
+	rm -f $(USERSPACE_DIR)/$(APP)

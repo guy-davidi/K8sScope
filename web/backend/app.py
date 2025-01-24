@@ -12,7 +12,7 @@ app = Flask(__name__, static_folder="../frontend/static", template_folder="../fr
 # Calculate BASE_DIR as the parent folder of web/
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 # Directories for EBPF and userspace programs (adjust if needed)
-EBPF_SRC_DIR = os.path.join(BASE_DIR, "../ebpf", "src")
+EBPF_SRC_DIR = os.path.join(BASE_DIR, "../ebpf", "exec_syscall")
 USERSPACE_DIR = os.path.join(BASE_DIR, "../userspace")
 
 # Global list and lock for storing collector events (for eBPF)
@@ -366,14 +366,23 @@ def stop_userspace():
     global userspace_proc
     if userspace_proc is not None and userspace_proc.poll() is None:
         try:
+            # Send SIGTERM first
             subprocess.run(["sudo", "kill", "-15", str(userspace_proc.pid)], check=True)
-            userspace_proc.wait(timeout=5)
-            app.logger.info("Userspace program terminated successfully.")
-            return jsonify({"message": "Userspace program stopped."}), 200
+            userspace_proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            # If still not terminated, send SIGKILL
+            subprocess.run(["sudo", "kill", "-9", str(userspace_proc.pid)], check=True)
+            userspace_proc.wait(timeout=2)
         except Exception as ex:
             app.logger.error(f"Error stopping userspace program: {ex}")
             return jsonify({"error": str(ex)}), 500
+        finally:
+            userspace_proc = None
+
+        app.logger.info("Userspace program terminated successfully.")
+        return jsonify({"message": "Userspace program stopped."}), 200
     else:
+        userspace_proc = None
         return jsonify({"message": "Userspace program is not running."}), 200
 
 
@@ -384,6 +393,12 @@ def get_userspace_output():
         output_copy = userspace_output.copy()
     return jsonify({"output": output_copy})
 
+@app.route("/api/userspace_status", methods=["GET"])
+def userspace_status():
+    global userspace_proc
+    # If userspace_proc is not None and hasn't exited (poll() returns None), it's running
+    running = (userspace_proc is not None and userspace_proc.poll() is None)
+    return jsonify({"running": running}), 200
 
 @app.route("/api/dump_userspace_output", methods=["GET"])
 def dump_userspace_output():
