@@ -1,8 +1,14 @@
 // Global variables for Chart.js and polling intervals
 let logChart = null;
 let pollingInterval = null;
-let userspacePollingInterval = null;
+
 let userspaceChart = null;
+let userspacePollingInterval = null;
+
+// We'll store eBPF collector events and userspace output lines in JS arrays
+// but also persist them in localStorage so we don't lose them on refresh.
+let ebpfEventsMemory = [];       // eBPF logs
+let userspaceOutputMemory = [];  // Userspace logs
 
 /* -------------------------------
    Utility Functions
@@ -50,11 +56,35 @@ function showToast(message, isError = false) {
   });
 }
 
+/* 
+ * Restore data from localStorage so we don't lose chart lines after refresh.
+ * Called in DOMContentLoaded for both eBPF events & Userspace output.
+ */
+function restoreDataFromLocalStorage() {
+  // eBPF events
+  const storedEbpf = localStorage.getItem("ebpfEventsMemory");
+  if (storedEbpf) {
+    ebpfEventsMemory = JSON.parse(storedEbpf);
+  }
+  // Userspace logs
+  const storedUserspace = localStorage.getItem("userspaceOutputMemory");
+  if (storedUserspace) {
+    userspaceOutputMemory = JSON.parse(storedUserspace);
+  }
+}
+
+/* 
+ * Save the updated data arrays to localStorage
+ */
+function persistDataToLocalStorage() {
+  localStorage.setItem("ebpfEventsMemory", JSON.stringify(ebpfEventsMemory));
+  localStorage.setItem("userspaceOutputMemory", JSON.stringify(userspaceOutputMemory));
+}
+
 /* -------------------------------
-   API and DOM Update Functions
+   eBPF: API and DOM Updates
 ------------------------------- */
 async function fetchPrograms() {
-  console.log("[DEBUG] fetchPrograms() called");
   showLoading(true);
   try {
     const res = await fetch("/api/programs");
@@ -81,25 +111,22 @@ function updateOFileList(programs) {
   if (programs.length === 0) {
     const li = document.createElement("li");
     li.className = "list-group-item text-muted";
-    li.textContent = "No .o files found in ebpf/src.";
+    li.textContent = "No .o files found.";
     listEl.appendChild(li);
     return;
   }
   programs.forEach((prog) => {
     const li = document.createElement("li");
-    li.className =
-      "list-group-item d-flex justify-content-between align-items-center";
+    li.className = "list-group-item";
     li.textContent = prog;
     li.tabIndex = 0;
     li.addEventListener("click", () => {
-      listEl
-        .querySelectorAll(".active")
-        .forEach((item) => item.classList.remove("active"));
+      listEl.querySelectorAll(".active").forEach((item) => item.classList.remove("active"));
       li.classList.add("active");
       document.getElementById("programInput").value = prog;
     });
-    li.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") li.click();
+    li.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") li.click();
     });
     listEl.appendChild(li);
   });
@@ -159,7 +186,8 @@ function updateLoadedTable(loaded) {
               <strong>Bytes Translated:</strong> ${prog.bytes_xlated}
             </li>
             <li class="list-group-item">
-              <strong>JITed:</strong> <span class="badge bg-${
+              <strong>JITed:</strong>
+              <span class="badge bg-${
                 prog.jited ? "primary" : "secondary"
               }">${prog.jited ? "Yes" : "No"}</span>
             </li>
@@ -185,20 +213,21 @@ function updateLoadedTable(loaded) {
 }
 
 /* -------------------------------
-   Form Submission & eBPF Actions
+   eBPF Form Submission & Actions
 ------------------------------- */
 function attachFormEvent() {
   const ebpfForm = document.getElementById("ebpf-form");
   if (ebpfForm) {
     ebpfForm.addEventListener("submit", handleFormSubmit);
   } else {
-    console.error("[DEBUG] ebpf-form element not found.");
+    console.error("[DEBUG] ebpf-form not found.");
   }
 }
 
 async function handleFormSubmit(e) {
   e.preventDefault();
   showLoading(true);
+
   const action = document.getElementById("action").value;
   const program = document.getElementById("programInput").value.trim();
   const pinPath = document.getElementById("pinPath").value.trim();
@@ -208,12 +237,12 @@ async function handleFormSubmit(e) {
   try {
     if (action === "load") {
       await doLoad(program, pinPath, typeVal);
-    } else if (action === "unload") {
-      await doUnload(program, pinPath);
     } else if (action === "attach") {
       await doAttach(pinPath, typeVal, targetVal);
     } else if (action === "detach") {
       await doDetach(pinPath, typeVal, targetVal);
+    } else if (action === "unload") {
+      await doUnload(program, pinPath);
     } else {
       showToast("Unknown action: " + action, true);
       throw new Error("Unknown action");
@@ -253,7 +282,7 @@ async function doUnload(program, pinPath) {
   else if (program) body.program = program;
   else {
     showToast("Provide a pinPath or program name to unload", true);
-    throw new Error("No unload path or program");
+    throw new Error("No unload path or program specified");
   }
   const res = await fetch("/api/programs/unload", {
     method: "POST",
@@ -287,7 +316,8 @@ async function doAttach(pinPath, attachType, target) {
       attachType.toLowerCase() === "xdp"
         ? "eth0"
         : "tracepoint/syscalls/sys_enter_execve";
-  const body = { pin_path: pinPath, attach_type: attachType, target: target };
+
+  const body = { pin_path: pinPath, attach_type: attachType, target };
   const res = await fetch("/api/programs/attach", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -312,6 +342,7 @@ async function doDetach(pinPath, attachType, target) {
   }
   const body = { pin_path: pinPath, attach_type: attachType };
   if (target) body.target = target;
+
   const res = await fetch("/api/programs/detach", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -326,26 +357,34 @@ async function doDetach(pinPath, attachType, target) {
 }
 
 /* -------------------------------
-   Log and Visualization (eBPF)
+   eBPF Logs & Visualization
 ------------------------------- */
 function fetchCollectorEvents() {
   fetch("/api/collector_events")
-    .then((response) => response.json())
+    .then((res) => res.json())
     .then((data) => {
+      // Merge new events with existing memory
+      // (We assume data.events is an array of strings)
+      data.events.forEach((evt) => {
+        if (!ebpfEventsMemory.includes(evt)) {
+          ebpfEventsMemory.push(evt);
+        }
+      });
+      persistDataToLocalStorage(); // Store updated logs
+
+      // Update the logs panel
       const eventsDiv = document.getElementById("collector-events");
       eventsDiv.innerHTML = "";
-      data.events
-        .slice()
-        .reverse()
-        .forEach((event) => {
-          const eventElem = document.createElement("div");
-          eventElem.className = "border-bottom py-1";
-          eventElem.style.fontSize = "0.8rem";
-          eventElem.textContent = event;
-          eventsDiv.appendChild(eventElem);
-        });
+      [...ebpfEventsMemory].reverse().forEach((event) => {
+        const eventElem = document.createElement("div");
+        eventElem.className = "border-bottom py-1";
+        eventElem.style.fontSize = "0.8rem";
+        eventElem.textContent = event;
+        eventsDiv.appendChild(eventElem);
+      });
+      // Update chart
       if (logChart) {
-        updateChartData(data.events);
+        updateChartData(ebpfEventsMemory.length);
       }
     })
     .catch((err) => console.error("Failed to fetch collector events:", err));
@@ -353,15 +392,10 @@ function fetchCollectorEvents() {
 
 function initializeChart() {
   const canvas = document.getElementById("logChart");
-  if (!canvas) {
-    console.error("Chart canvas element not found");
-    return;
-  }
+  if (!canvas) return console.error("Chart canvas not found for eBPF logs");
   const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    console.error("Unable to get 2D context for logChart");
-    return;
-  }
+  if (!ctx) return console.error("2D context for logChart not found");
+
   logChart = new Chart(ctx, {
     type: "line",
     data: {
@@ -381,26 +415,25 @@ function initializeChart() {
       maintainAspectRatio: false,
       scales: {
         x: { title: { display: true, text: "Time" } },
-        y: { title: { display: true, text: "Count" } },
+        y: { title: { display: true, text: "Total Logs" } },
       },
     },
   });
 }
 
-function updateChartData(events) {
+function updateChartData(totalCount) {
   const now = new Date().toLocaleTimeString();
-  if (logChart.data.labels.length >= 10) {
+  if (logChart.data.labels.length >= 15) {
     logChart.data.labels.shift();
     logChart.data.datasets[0].data.shift();
   }
   logChart.data.labels.push(now);
-  // Example: using total event count as the y-value
-  logChart.data.datasets[0].data.push(events.length);
+  logChart.data.datasets[0].data.push(totalCount);
   logChart.update();
 }
 
 /* -------------------------------
-   Collection Start/Stop (eBPF)
+   eBPF Collection Control
 ------------------------------- */
 function startPolling() {
   if (!pollingInterval) {
@@ -410,9 +443,11 @@ function startPolling() {
 }
 
 function stopPolling() {
-  clearInterval(pollingInterval);
-  pollingInterval = null;
-  console.log("[DEBUG] eBPF polling stopped.");
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
+    console.log("[DEBUG] eBPF polling stopped.");
+  }
 }
 
 /* -------------------------------
@@ -423,7 +458,8 @@ async function loadUserspacePrograms() {
     const res = await fetch("/api/userspace_programs");
     if (!res.ok) throw new Error("Failed to load userspace programs");
     const data = await res.json();
-    console.log("Userspace programs received:", data.programs);
+    console.log("Userspace programs:", data.programs);
+
     const select = document.getElementById("userspaceProgramSelect");
     select.innerHTML = "";
     data.programs.forEach((prog) => {
@@ -438,18 +474,17 @@ async function loadUserspacePrograms() {
   }
 }
 
-/**
- * NEW FUNCTION:
- * Check whether the userspace program is running and update button states.
+/* 
+ * Check if userspace is running so we can set button states:
+ * - if running => disable "Start" / enable "Stop"
  */
 function checkUserspaceStatus() {
   fetch("/api/userspace_status")
-    .then((response) => response.json())
+    .then((res) => res.json())
     .then((data) => {
       const running = data.running;
-      // If running == true, enable Stop and disable Start
-      document.getElementById("stopUserspaceBtn").disabled = !running;
       document.getElementById("startUserspaceBtn").disabled = running;
+      document.getElementById("stopUserspaceBtn").disabled = !running;
     })
     .catch((err) => {
       console.error("Failed to check userspace status:", err);
@@ -461,6 +496,7 @@ function startUserspaceProgram() {
   const argsInput = document.getElementById("userspaceArgs");
   const program = programSelect.value;
   const args = argsInput.value.trim();
+
   if (!program) {
     showToast("Please select a userspace program", true);
     return;
@@ -473,10 +509,7 @@ function startUserspaceProgram() {
     .then((response) => response.json())
     .then((data) => {
       if (data.error) showToast(data.error, true);
-      else {
-        showToast(data.message);
-      }
-      // After start attempt, refresh the status
+      else showToast(data.message);
       checkUserspaceStatus();
     })
     .catch((err) => {
@@ -489,11 +522,11 @@ function stopUserspaceProgram() {
   fetch("/api/stop_userspace", { method: "POST" })
     .then((response) => response.json())
     .then((data) => {
-      if (data.error) showToast(data.error, true);
-      else {
+      if (data.error) {
+        showToast(data.error, true);
+      } else {
         showToast(data.message);
       }
-      // After stop attempt, refresh the status
       checkUserspaceStatus();
     })
     .catch((err) => {
@@ -504,11 +537,20 @@ function stopUserspaceProgram() {
 
 function fetchUserspaceOutput() {
   fetch("/api/userspace_output")
-    .then((response) => response.json())
+    .then((res) => res.json())
     .then((data) => {
+      // Merge new lines into our memory array
+      data.output.forEach((line) => {
+        if (!userspaceOutputMemory.includes(line)) {
+          userspaceOutputMemory.push(line);
+        }
+      });
+      persistDataToLocalStorage();
+
+      // Update the UI
       const outputDiv = document.getElementById("userspaceOutput");
-      outputDiv.textContent = data.output.join("\n");
-      updateUserspaceChartData(data.output.length);
+      outputDiv.textContent = userspaceOutputMemory.join("\n");
+      updateUserspaceChartData(userspaceOutputMemory.length);
     })
     .catch((err) => console.error("Failed to fetch userspace output:", err));
 }
@@ -521,29 +563,26 @@ function startUserspacePolling() {
 }
 
 function stopUserspacePolling() {
-  clearInterval(userspacePollingInterval);
-  userspacePollingInterval = null;
-  console.log("[DEBUG] Userspace polling stopped.");
+  if (userspacePollingInterval) {
+    clearInterval(userspacePollingInterval);
+    userspacePollingInterval = null;
+    console.log("[DEBUG] Userspace polling stopped.");
+  }
 }
 
 function initializeUserspaceChart() {
   const canvas = document.getElementById("userspaceChart");
-  if (!canvas) {
-    console.error("Userspace chart canvas not found");
-    return;
-  }
+  if (!canvas) return console.error("Userspace chart canvas not found");
   const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    console.error("Unable to get 2D context for userspaceChart");
-    return;
-  }
+  if (!ctx) return console.error("No 2D context for userspaceChart");
+
   userspaceChart = new Chart(ctx, {
     type: "line",
     data: {
       labels: [],
       datasets: [
         {
-          label: "Userspace Lines Over Time",
+          label: "Userspace Output Lines Over Time",
           data: [],
           fill: false,
           borderColor: "rgb(255, 99, 132)",
@@ -562,139 +601,149 @@ function initializeUserspaceChart() {
   });
 }
 
-function updateUserspaceChartData(linesCount) {
+function updateUserspaceChartData(lineCount) {
+  if (!userspaceChart) return;
   const now = new Date().toLocaleTimeString();
-  if (userspaceChart.data.labels.length >= 10) {
+  if (userspaceChart.data.labels.length >= 15) {
     userspaceChart.data.labels.shift();
     userspaceChart.data.datasets[0].data.shift();
   }
   userspaceChart.data.labels.push(now);
-  userspaceChart.data.datasets[0].data.push(linesCount);
+  userspaceChart.data.datasets[0].data.push(lineCount);
   userspaceChart.update();
 }
 
 function initializeUserspaceDumpHandler() {
   const dumpBtn = document.getElementById("dumpUserspaceOutputBtn");
-  dumpBtn.addEventListener("click", () => {
-    window.location.href = "/api/dump_userspace_output";
-  });
+  if (dumpBtn) {
+    dumpBtn.addEventListener("click", () => {
+      window.location.href = "/api/dump_userspace_output";
+    });
+  }
 }
 
 /* -------------------------------
-   eBPF Collection Button Handlers
+   Button Handlers: eBPF
 ------------------------------- */
-function initializeCollectionButtonHandlers() {
+function initializeEBPFButtons() {
   const startBtn = document.getElementById("startCollectionBtn");
   const stopBtn = document.getElementById("stopCollectionBtn");
   const toggleLogsBtn = document.getElementById("toggleLogsBtn");
+  const dumpLogsBtn = document.getElementById("dumpLogsBtn");
+  const toggleVizBtn = document.getElementById("toggleVizBtn");
+
   const collectorPanel = document.getElementById("collector-panel");
+  const vizPanel = document.getElementById("visualization-panel");
 
-  startBtn.addEventListener("click", () => {
-    startPolling();
-    startBtn.disabled = true;
-    stopBtn.disabled = false;
-    showToast("eBPF Collection started");
-  });
-
-  stopBtn.addEventListener("click", async function () {
-    try {
-      const res = await fetch("/api/stop_collection", { method: "POST" });
-      const data = await res.json();
-      showToast(data.message || data.error, data.error ? true : false);
-      stopPolling();
-      stopBtn.disabled = true;
-      startBtn.disabled = false;
-    } catch (err) {
-      console.error("Failed to stop eBPF collector:", err);
-      showToast("Error stopping eBPF collector: " + err.message, true);
-    }
-  });
-
-  toggleLogsBtn.addEventListener("click", () => {
-    if (
-      collectorPanel.style.display === "none" ||
-      collectorPanel.style.display === ""
-    ) {
-      collectorPanel.style.display = "block";
-      toggleLogsBtn.textContent = "Hide Logs";
+  if (startBtn) {
+    startBtn.addEventListener("click", () => {
       startPolling();
-    } else {
-      collectorPanel.style.display = "none";
-      toggleLogsBtn.textContent = "Show Logs";
-      stopPolling();
-    }
-  });
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      showToast("eBPF Collection started");
+    });
+  }
+  if (stopBtn) {
+    stopBtn.addEventListener("click", async () => {
+      try {
+        const res = await fetch("/api/stop_collection", { method: "POST" });
+        const data = await res.json();
+        showToast(data.message || data.error, !!data.error);
+        stopPolling();
+        stopBtn.disabled = true;
+        startBtn.disabled = false;
+      } catch (err) {
+        console.error("Failed to stop eBPF collector:", err);
+        showToast("Error stopping eBPF collector: " + err.message, true);
+      }
+    });
+  }
+  if (toggleLogsBtn) {
+    toggleLogsBtn.addEventListener("click", () => {
+      if (!collectorPanel) return;
+      const isHidden =
+        collectorPanel.style.display === "none" || collectorPanel.style.display === "";
+      collectorPanel.style.display = isHidden ? "block" : "none";
+      toggleLogsBtn.textContent = isHidden ? "Hide Logs" : "Toggle Logs";
+      if (isHidden) {
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    });
+  }
+  if (dumpLogsBtn) {
+    dumpLogsBtn.addEventListener("click", () => {
+      window.location.href = "/api/dump_logs";
+    });
+  }
+  if (toggleVizBtn) {
+    toggleVizBtn.addEventListener("click", () => {
+      if (!vizPanel) return;
+      const isHidden =
+        vizPanel.style.display === "none" || vizPanel.style.display === "";
+      vizPanel.style.display = isHidden ? "block" : "none";
+      toggleVizBtn.textContent = isHidden ? "Hide Visualization" : "Visualize";
+      if (isHidden && !logChart) {
+        initializeChart();
+        // On first init, also fill the chart with the existing memory
+        if (ebpfEventsMemory.length > 0) {
+          updateChartData(ebpfEventsMemory.length);
+        }
+      }
+    });
+  }
 }
 
 /* -------------------------------
-   Userspace Management Handlers
+   Button Handlers: Userspace
 ------------------------------- */
-function initializeUserspaceManagementHandlers() {
+function initializeUserspaceButtons() {
   const startBtn = document.getElementById("startUserspaceBtn");
   const stopBtn = document.getElementById("stopUserspaceBtn");
   const toggleOutputBtn = document.getElementById("toggleUserspaceOutputBtn");
   const toggleVizBtn = document.getElementById("toggleUserspaceVizBtn");
+
   const outputPanel = document.getElementById("userspaceOutputPanel");
   const vizPanel = document.getElementById("userspaceVizPanel");
 
-  startBtn.addEventListener("click", startUserspaceProgram);
-  stopBtn.addEventListener("click", stopUserspaceProgram);
+  if (startBtn) startBtn.addEventListener("click", startUserspaceProgram);
+  if (stopBtn) stopBtn.addEventListener("click", stopUserspaceProgram);
 
-  toggleOutputBtn.addEventListener("click", () => {
-    if (
-      outputPanel.style.display === "none" ||
-      outputPanel.style.display === ""
-    ) {
-      outputPanel.style.display = "block";
-      toggleOutputBtn.textContent = "Hide Output";
-      startUserspacePolling();
-    } else {
-      outputPanel.style.display = "none";
-      toggleOutputBtn.textContent = "Show Output";
-      stopUserspacePolling();
-    }
-  });
-
-  toggleVizBtn.addEventListener("click", () => {
-    if (vizPanel.style.display === "none" || vizPanel.style.display === "") {
-      vizPanel.style.display = "block";
-      toggleVizBtn.textContent = "Hide Visualization";
-      if (!userspaceChart) {
-        initializeUserspaceChart();
+  if (toggleOutputBtn) {
+    toggleOutputBtn.addEventListener("click", () => {
+      const isHidden =
+        outputPanel.style.display === "none" || outputPanel.style.display === "";
+      outputPanel.style.display = isHidden ? "block" : "none";
+      toggleOutputBtn.textContent = isHidden ? "Hide Output" : "Toggle Output";
+      if (isHidden) {
+        startUserspacePolling();
+      } else {
+        stopUserspacePolling();
       }
-    } else {
-      vizPanel.style.display = "none";
-      toggleVizBtn.textContent = "Visualize";
-    }
-  });
+    });
+  }
 
+  if (toggleVizBtn) {
+    toggleVizBtn.addEventListener("click", () => {
+      const isHidden =
+        vizPanel.style.display === "none" || vizPanel.style.display === "";
+      vizPanel.style.display = isHidden ? "block" : "none";
+      toggleVizBtn.textContent = isHidden ? "Hide Visualization" : "Visualize";
+      if (isHidden && !userspaceChart) {
+        initializeUserspaceChart();
+        // Also push existing memory count
+        if (userspaceOutputMemory.length > 0) {
+          updateUserspaceChartData(userspaceOutputMemory.length);
+        }
+      }
+    });
+  }
   initializeUserspaceDumpHandler();
 }
 
 /* -------------------------------
-   Other Button Handlers (eBPF)
-------------------------------- */
-function initializeButtonHandlers() {
-  document.getElementById("dumpLogsBtn").addEventListener("click", () => {
-    window.location.href = "/api/dump_logs";
-  });
-  document.getElementById("toggleVizBtn").addEventListener("click", function () {
-    const vizPanel = document.getElementById("visualization-panel");
-    if (vizPanel.style.display === "none" || vizPanel.style.display === "") {
-      vizPanel.style.display = "block";
-      this.textContent = "Hide Visualization";
-      if (!logChart) {
-        initializeChart();
-      }
-    } else {
-      vizPanel.style.display = "none";
-      this.textContent = "Visualize";
-    }
-  });
-}
-
-/* -------------------------------
-   File Search Handler for .o Files
+   Search Handler for .o Files
 ------------------------------- */
 function initializeFileSearch() {
   const searchInput = document.getElementById("fileSearch");
@@ -715,17 +764,23 @@ function initializeFileSearch() {
    DOM Initialization
 ------------------------------- */
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("[DEBUG] DOM Content Loaded. Fetching programs...");
+  // 1) Restore data from localStorage if present
+  restoreDataFromLocalStorage();
+
+  // 2) Load eBPF programs & attach form handler
   fetchPrograms();
   attachFormEvent();
-  initializeButtonHandlers(); // eBPF Dump & Visualization
-  initializeCollectionButtonHandlers();
-  initializeUserspaceManagementHandlers();
 
-  // Load userspace programs, then check status to fix "Stop" button state on refresh
+  // 3) eBPF button handlers
+  initializeEBPFButtons();
+
+  // 4) Userspace programs
   loadUserspacePrograms().then(() => {
     checkUserspaceStatus();
   });
+  // 5) Userspace button handlers
+  initializeUserspaceButtons();
 
+  // 6) File search
   initializeFileSearch();
 });

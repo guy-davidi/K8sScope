@@ -366,14 +366,23 @@ def stop_userspace():
     global userspace_proc
     if userspace_proc is not None and userspace_proc.poll() is None:
         try:
+            # Send SIGTERM first
             subprocess.run(["sudo", "kill", "-15", str(userspace_proc.pid)], check=True)
-            userspace_proc.wait(timeout=5)
-            app.logger.info("Userspace program terminated successfully.")
-            return jsonify({"message": "Userspace program stopped."}), 200
+            userspace_proc.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            # If still not terminated, send SIGKILL
+            subprocess.run(["sudo", "kill", "-9", str(userspace_proc.pid)], check=True)
+            userspace_proc.wait(timeout=2)
         except Exception as ex:
             app.logger.error(f"Error stopping userspace program: {ex}")
             return jsonify({"error": str(ex)}), 500
+        finally:
+            userspace_proc = None
+
+        app.logger.info("Userspace program terminated successfully.")
+        return jsonify({"message": "Userspace program stopped."}), 200
     else:
+        userspace_proc = None
         return jsonify({"message": "Userspace program is not running."}), 200
 
 
